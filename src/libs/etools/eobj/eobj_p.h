@@ -1,4 +1,4 @@
-﻿/// =====================================================================================
+/// =====================================================================================
 ///
 ///       Filename:  eobj_p.h
 ///
@@ -243,9 +243,15 @@ typedef struct _enode_s{
 #define _r_len(r)           _ehdr_len(_r_h(r))
 #define _r_typec(r)         _ehdr_type_c(_r_h(r))
 #define _r_typeo(r)         _ehdr_type_o(_r_h(r))
+#define _r_typek(r)         _ehdr_type_k(_r_h(r))
 #define _r_typeco(r)        _ehdr_type_co(_r_h(r))
-#define _r_typeco_set(r)    _ehdr_type_co(_r_h(r)) = _cur_type(_CUR_C_TYPE, CO_OBJ)
 #define _r_keys(r)          _ehdr_keys(_r_h(r))
+
+#define _r_hkey(r)          _ehdr_hkey(_r_h(r))
+#define _r_linked(r)        _ehdr_linked(_r_h(r))
+#define _r_refed(r)         _ehdr_refed(_r_h(r))
+
+#define _r_typeco_set(r)    _ehdr_type_co(_r_h(r)) = _cur_type(_CUR_C_TYPE, CO_OBJ)
 
 //! -- data node macros --
 //!

@@ -16,13 +16,14 @@
 
 #include <time.h>
 #include <stdio.h>
+#include <errno.h>
 
 #include "ecompat.h"
 #include "eutils.h"
 
 #include "etime.h"
 
-#ifdef __linux
+#if defined(__linux) || defined(__APPLE__)
 #include <ctype.h>
 #endif
 
@@ -153,10 +154,10 @@ cstr e_nowstr(cstr buf, int len)
     return buf;
 }
 
-char* estrptime(const char *buf, const char* fmt, etm* tm);
+char* estrptime(const char *buf, const char* fmt, etm tm);
 cstr e_strfstr(cstr dest, int dlen, constr dfmt, constr from, constr ffmt)
 {
-    etm _tm = {0};
+    etm_t _tm = {0};
 
     if(estrptime(from, ffmt, &_tm))
     {
@@ -177,7 +178,7 @@ cstr e_strfsec(cstr dest, int dlen, constr dfmt, time_t sec)
 
 i64 e_strpsec(constr from, constr ffmt)
 {
-    etm _tm = {0};
+    etm_t _tm = {0};
 
     return estrptime(from, ffmt, &_tm) ? mktime((struct tm* const)&_tm)
                                        : -1;
@@ -185,7 +186,7 @@ i64 e_strpsec(constr from, constr ffmt)
 
 i64 e_strpms(constr from, constr ffmt)
 {
-    etm _tm = {0};
+    etm_t _tm = {0};
 
     return estrptime(from, ffmt, &_tm) ? mktime((struct tm* const)&_tm) * 1000
                                        : -1;
@@ -360,7 +361,7 @@ static const int	year_lengths[2] = {
 static void timesub(
         const time_t * const    timep,
         const long				offset,
-              etm * const		tmp)
+              etm_t *  const    tmp)
 {
     long			days;
     long			 rem;
@@ -416,7 +417,7 @@ static void timesub(
 /*
 * Re-entrant version of gmtime.
 */
-etm* _gmtime_r(const time_t* timep, etm *tm)
+etm _gmtime_r(const time_t* timep, etm tm)
 {
     timesub(timep, 0L, tm);
     return tm;
@@ -425,7 +426,7 @@ etm* _gmtime_r(const time_t* timep, etm *tm)
 #define gmtime_r _gmtime_r
 
 static char *
-_strptime(const char *buf, const char *fmt, etm *tm, int *GMTp,
+_strptime(const char *buf, const char *fmt, etm tm, int *GMTp,
         locale_t locale)
 {
     char	c;
@@ -1045,7 +1046,7 @@ label:
     return ((char *)buf);
 }
 
-char* estrptime(const char *buf, const char* fmt, etm* tm)
+char* estrptime(const char *buf, const char* fmt, etm tm)
 {
     int GMP = 0;
 
@@ -1056,7 +1057,7 @@ char* estrptime(const char *buf, const char* fmt, etm* tm)
 
 #define __e_strftime(desc, dlen, dfmt, etm) strftime(desc, dlen, dfmt, (struct tm const*)etm)
 
-static cstr __elapsestrftm(cstr buf, int len, constr fmt, etm* time)
+static cstr __elapsestrftm(cstr buf, int len, constr fmt, etm time)
 {
     int year_set = 0, day_set = 0;
 
@@ -1072,9 +1073,9 @@ static cstr __elapsestrftm(cstr buf, int len, constr fmt, etm* time)
     return __e_strftime(buf, len, fmt, time) ? buf : 0;
 }
 
-static i64 __elapsesecffmt(constr from, constr ffmt)
+static long __elapsesecffmt(constr from, constr ffmt)
 {
-    constr c = ffmt, s = from; cstr end; i64 sec = 0; int num;
+    constr c = ffmt, s = from; cstr end; long sec = 0; int num;
 
     while(*c != '\0')
     {
@@ -1166,11 +1167,11 @@ err_ret:
 
 cstr e_elapsefstr(cstr dest, int dlen, constr dfmt, constr from, constr ffmt)
 {
-    i64 elapse_sec = __elapsesecffmt(from, ffmt);
+    long elapse_sec = __elapsesecffmt(from, ffmt);
 
     if(elapse_sec == -1)
     {
-        etm time;
+        etm_t time;
 
         if(estrptime(from, ffmt, &time))
         {
@@ -1182,9 +1183,9 @@ cstr e_elapsefstr(cstr dest, int dlen, constr dfmt, constr from, constr ffmt)
     return e_elapsefsec(dest, dlen, dfmt, elapse_sec);
 }
 
-cstr e_elapsefsec(cstr dest, int dlen, constr dfmt, i64 sec)
+cstr e_elapsefsec(cstr dest, int dlen, constr dfmt, time_t sec)
 {
-    etm _tm;
+    etm_t _tm;
 
     if(gmtime_r(&sec, &_tm))
     {
@@ -1201,7 +1202,7 @@ i64 e_elapsepsec(constr from, constr ffmt)
 
     if(elapse_sec == -1)
     {
-        etm _tm = {0};
+        etm_t _tm = {0};
         _tm.tm_mday = 1;
         _tm.tm_year = -1900;
 
@@ -1221,7 +1222,7 @@ i64 e_elapsepms(constr from, constr ffmt)
 
     if(elapse_sec == -1)
     {
-        etm _tm = {0};
+        etm_t _tm = {0};
         _tm.tm_mday = 1;
         _tm.tm_year = -1900;
 

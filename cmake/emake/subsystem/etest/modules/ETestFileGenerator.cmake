@@ -16,7 +16,14 @@
 
 
 
-macro(ETestGenTestCaseContent cases content)
+macro(ETestGenTestCaseContent file content)
+
+    set(_extern_C)
+    if(${file} MATCHES "(.cpp|.cxx)$")
+        set(_extern_C "extern \"C\"")
+    endif()
+
+    string(REGEX REPLACE "(.c|.cpp|.cxx)$" "" _name ${file})
 
     set(${content}
 
@@ -26,24 +33,27 @@ macro(ETestGenTestCaseContent cases content)
 
 #include <etest.h>
 
-static int ${cases}_case1()
+static int ${_name}_case1()
 {
     eexpect_num(1, 1)\;      // passed
 
     return ETEST_OK\;
 }
 
-static int ${cases}_case2()
+static int ${_name}_case2()
 {
     eexpect_num(1, 0)\;      // will failed
 
     return ETEST_OK\;
 }
 
-int ${cases}(int argc, char* argv[])
+${_extern_C}
+int ${_name}(int argc, char* argv[])
 {
-    ETEST_RUN( ${cases}_case1() )\;
-    ETEST_RUN( ${cases}_case2() )\;
+    (void)argc\; (void)argv\;
+
+    ETEST_RUN( ${_name}_case1() )\;
+    ETEST_RUN( ${_name}_case2() )\;
 
     return ETEST_OK\;
 }
@@ -60,9 +70,7 @@ macro(ETestGenCaseFiles _dir _files)
 
         if(NOT EXISTS ${_dir}/${_file})
 
-            string(REGEX REPLACE "(.c|.cpp|.cxx)$" "" _name ${_file})
-
-            ETestGenTestCaseContent(${_name} _content)
+            ETestGenTestCaseContent(${_file} _content)
 
             file(WRITE ${_dir}/${_file} ${_content} )
 

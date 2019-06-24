@@ -19,7 +19,8 @@
 #define _CRT_SECURE_NO_WARNINGS
 #endif
 
-#define EJSON_VERSION "ejson 1.1.5"     // return len in ejson_size
+#undef  EJSON_VERSION
+#define EJSON_VERSION "ejson 1.1.5"     // return len in ejson_size and fix bug of raise coredump when err occured in file parsing
 
 #include <stdio.h>
 #include <stdlib.h>

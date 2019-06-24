@@ -19,129 +19,10 @@
 #include <stdlib.h>
 #include <time.h>
 #include <stdio.h>
+#include <ctype.h>
+#include <math.h>
 
 #include "eutils.h"
-
-#ifndef _WIN32
-#include <sys/sysinfo.h>
-#include <ctype.h>
-#else
-#include <windows.h>
-#endif
-
-typedef enum {
-  _CLOCK_PRECISE = 0,  /* Use the highest resolution clock available. */
-  _CLOCK_FAST    = 1   /* Use the fastest clock with <= 1ms granularity. */
-} clocktype_t;
-
-/* Available from 2.6.32 onwards. */
-#ifndef CLOCK_MONOTONIC_COARSE
-#define CLOCK_MONOTONIC_COARSE 6
-#endif
-
-#ifndef _WIN32
-#include <sys/time.h>
-static i64     __hrtime_nsec_offset;
-static clock_t __fast_clock_id;
-static inline int __hrtime_init()
-{
-
-    struct timespec t1 = {0, 0},
-                    t2 = {0, 0};
-    struct timeval  t3 = {0, 0};
-
-    // -- check function
-    if(clock_gettime(CLOCK_MONOTONIC, &t1))
-    {
-        if(clock_gettime(CLOCK_REALTIME, &t1))
-        {
-            perror("clock_gettime not working correctly");
-            abort();        /* Not really possible. */
-        }
-
-        return 1;           // offset is 0;
-    }
-
-    // -- get offset
-    if(-1 == gettimeofday(&t3, 0))
-    {
-        clock_gettime(CLOCK_REALTIME, &t2);
-        __hrtime_nsec_offset = (i64)t2.tv_sec * 1000000000 + (i64)t2.tv_nsec - (i64)t1.tv_sec * 1000000000 + (i64)t1.tv_nsec;
-    }
-    else
-        __hrtime_nsec_offset = (i64)t3.tv_sec * 1000000000 + (i64)t3.tv_usec*1000 - (i64)t1.tv_sec * 1000000000 + (i64)t1.tv_nsec;
-
-    // -- check fast get
-    if (clock_getres(CLOCK_MONOTONIC_COARSE, &t1) == 0 && t1.tv_nsec <= 1 * 1000 * 1000)
-        __fast_clock_id = CLOCK_MONOTONIC_COARSE;
-    else
-        __fast_clock_id = CLOCK_MONOTONIC;
-
-    return 1;
-}
-
-static inline u64 __hrtime_ns(clocktype_t type)
-{
-    static int __hrtime_init_needed = 1;
-    struct timespec t;
-    clock_t clock_id;
-
-    if( __hrtime_init_needed ) {
-        __hrtime_init();
-        __hrtime_init_needed = 0;
-    }
-
-    clock_id = (type == _CLOCK_FAST) ? __fast_clock_id : CLOCK_MONOTONIC;
-
-    if (clock_gettime(clock_id, &t))
-        clock_gettime(CLOCK_REALTIME, &t);
-
-    return t.tv_sec * 1000000000 + t.tv_nsec + __hrtime_nsec_offset;
-}
-
-#else
-
-#include <sys/timeb.h>
-static i64    __hrtime_nsec_offset;
-static double __hrtime_interval;
-#define __hrtime_precise 1000000000LL
-static inline int __hrtime_init()
-{
-    if(__hrtime_interval == 0)
-    {
-        LARGE_INTEGER perf_frequency; struct timeb tm; LARGE_INTEGER counter;
-
-        if (QueryPerformanceFrequency(&perf_frequency)) {	__hrtime_interval = 1.0 / perf_frequency.QuadPart;}
-        else{
-            perror("clock_gettime not working correctly");
-            abort();        /* Not really possible. */
-        }
-
-        ftime(&tm);										// note: the PRECISE of window of this func is 15ms
-        QueryPerformanceCounter(&counter);
-        __hrtime_nsec_offset = __hrtime_precise * tm.time + __hrtime_precise / 1000 * tm.millitm - (i64) ((double) counter.QuadPart * __hrtime_interval * __hrtime_precise);
-    }
-
-    return 1;
-}
-
-static inline u64 __hrtime_ns(clocktype_t type)
-{
-    LARGE_INTEGER counter;
-
-    if(__hrtime_interval == 0) __hrtime_init();
-
-    QueryPerformanceCounter(&counter);
-
-    return (u64) ((double) counter.QuadPart * __hrtime_interval * __hrtime_precise) + __hrtime_nsec_offset;
-}
-#endif
-
-i64  eutils_nowns() { return __hrtime_ns(_CLOCK_PRECISE)          ; }
-i64  eutils_nowms() { return __hrtime_ns(_CLOCK_FAST   ) / 1000000; }
-
-i64  nowns() { return __hrtime_ns(_CLOCK_PRECISE)          ; }
-i64  nowms() { return __hrtime_ns(_CLOCK_FAST   ) / 1000000; }
 
 int ll2str(i64 value, cstr s)
 {
@@ -204,19 +85,6 @@ int ull2str(u64 v, cstr s)
     return l;
 }
 
-int eutils_rand()
-{
-    static uint _seed;
-
-    if(!_seed)
-    {
-        _seed = (unsigned)time(0);
-        srand(_seed);
-    }
-
-    return rand();
-}
-
 int e_strcasecmp(const char *s1, const char *s2)
 {
     const unsigned char
@@ -248,14 +116,167 @@ int e_strncasecmp(const char *s1, const char *s2, size_t n)
     return (0);
 }
 
-int  eutils_nprocs()
+/** ------------------------------------------------------
+ *
+ *  rand tools
+*/
+static long _rstate;
+
+int e_rand()
 {
-#ifndef _WIN32
-    return get_nprocs();
-#else
+    _rstate = _rstate * 214013L + 2531011L;
+    return (_rstate >> 16) & 0x7fff;
+}
+
+void e_srand(int seed)
+{
+    _rstate = (long)seed;
+}
+
+#define R48_MULTIPLICAND 0x5deece66dULL
+#define R48_ADDEND       11
+#define R48_INITIAL_VAL  0x1234abcd330eULL
+#define R48_MASK         0xffffffffffffULL
+
+
+static u16 r48state[3]
+    = { R48_INITIAL_VAL        & 0xffff,
+       (R48_INITIAL_VAL >> 16) & 0xffff,
+       (R48_INITIAL_VAL >> 32) & 0xffff };
+
+static u16 r48multiplicand[3]
+    = { R48_MULTIPLICAND        & 0xffff,
+       (R48_MULTIPLICAND >> 16) & 0xffff,
+       (R48_MULTIPLICAND >> 32) & 0xffff };
+
+static u16 r48addend = R48_ADDEND;
+
+/* Get a 48-bit number as a long integer */
+static __always_inline long long _r48_getll(unsigned short s[3]) {
+    return (long long)s[0] | ((long long)s[1] << 16) | ((long long)s[2] << 32);
+}
+
+static void _r48_iterate(unsigned short state[3]) {
+    unsigned long long hi, lo, multiplicand, result;
+    lo = state[0] | ((unsigned long)state[1] << 16);
+    hi = state[2];
+    multiplicand = _r48_getll(r48multiplicand);
+    result = (((lo * multiplicand) & R48_MASK) +
+             (((hi * (multiplicand & 0xffff)) << 32) & R48_MASK) + r48addend) & R48_MASK;
+    state[0] = result & 0xffffUL;
+    state[1] = (result >> 16) & 0xffffUL;
+    state[2] = (result >> 32) & 0xffffUL;
+}
+
+long e_lrand48()
+{
+    long r;
+    _r48_iterate(r48state);
+    r = r48state[2];
+    r = (r << 15) | (r48state[1] >> 1);
+    return r;
+}
+
+long e_mrand48()
+{
+    int r;
+    _r48_iterate(r48state);
+    r = r48state[2];
+    r = (r << 16) | r48state[1];
+    return (long)r;
+}
+
+f64 e_drand48()
+{
+    _r48_iterate(r48state);
+    return _r48_getll(r48state) * (1.0 / (1ll << 48));  /* (0x1.0p-48 = 1.0 / 2^48) */
+}
+
+long e_jrand48(u16 xsubi[3])
+{
+    int r;
+    _r48_iterate(xsubi);
+    r = xsubi[2];
+    r = (r << 16) | xsubi[1];
+    return (long)r;
+}
+
+long e_nrand48(u16 xsubi[3])
+{
+    long r;
+    _r48_iterate(xsubi);
+    r = xsubi[2];
+    r = (r << 15) | (xsubi[1] >> 1);
+    return r;
+}
+
+f64 e_erand48(u16 xsubi[3])
+{
+    _r48_iterate(xsubi);
+    return _r48_getll(xsubi) * (1.0 / (1ll << 48));  /* (0x1.0p-48 = 1.0 / 2**48) */
+}
+
+void e_srand48(long seedval)
+{
+    r48state[0] = R48_INITIAL_VAL & 0xffff;   /* Arbitrarily set to 0x330e */
+    r48state[1] = seedval & 0xffff;
+    r48state[2] = (seedval >> 16) & 0xffff;
+}
+
+u16 *e_seed48(u16 seed16v[3])
+{
+    static unsigned short old_seed[3];
+    /* Save old seed */
+    old_seed[0] = r48state[0];
+    old_seed[1] = r48state[1];
+    old_seed[2] = r48state[2];
+    /* Update new seed value */
+    r48state[0] = seed16v[0];
+    r48state[1] = seed16v[1];
+    r48state[2] = seed16v[2];
+    /* Reset multiplicand */
+    r48multiplicand[0] =  R48_MULTIPLICAND        & 0xffff;
+    r48multiplicand[1] = (R48_MULTIPLICAND >> 16) & 0xffff;
+    r48multiplicand[2] = (R48_MULTIPLICAND >> 32) & 0xffff;
+    /* Reset addend */
+    r48addend = R48_ADDEND;
+    return old_seed;
+}
+
+void e_lcong48(u16 param[7])
+{
+    /* First three shorts == seed */
+    r48state[0] = param[0];
+    r48state[1] = param[1];
+    r48state[2] = param[2];
+    /* Second three == multiplicand */
+    r48multiplicand[0] = param[3];
+    r48multiplicand[1] = param[4];
+    r48multiplicand[2] = param[5];
+    /* Last short == addend */
+    r48addend = param[6];
+}
+
+/** ------------------------------------------------------
+ *
+ *  system tools
+ *
+*/
+int  e_get_nprocs()
+{
+#ifdef _WIN32
     SYSTEM_INFO info;
     GetSystemInfo(&info);
     return info.dwNumberOfProcessors;
+
+#elif defined (__linux__)
+    #include <sys/sysinfo.h>
+    return get_nprocs();
+
+#elif defined (__APPLE__)
+
+    return sysconf(_SC_NPROCESSORS_ONLN);
+
 #endif
 }
 

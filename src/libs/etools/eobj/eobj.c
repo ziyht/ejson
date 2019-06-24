@@ -1,4 +1,4 @@
-#include "eobj_p.h"
+﻿#include "eobj_p.h"
 #include "eutils.h"
 
 #define EOBJ_VERSION     "eobj 1.0.5"   // adjust implementation of some APIs
@@ -16,50 +16,6 @@ f64    eobj_valF (eobj o) { _eo_retF(o); }
 constr eobj_valS (eobj o) { _eo_retS(o); }
 cptr   eobj_valP (eobj o) { _eo_retP(o); }
 cptr   eobj_valR (eobj o) { _eo_retR(o); }
-
-int ejson_free(eobj o);
-int ell_free(ell l);
-int edict_free(edict d);
-int erb_free(erb t);
-int esl_free(esl l);
-
-int ell_freeO(ell l, eobj obj);
-int edict_freeO(edict d, eobj obj);
-int erb_freeO  (erb t, eobj   o);
-int esl_freeO  (esl l, eobj   o);
-
-//int eobj_free(eobj o)
-//{
-//    is1_ret(!o || _eo_linked(o), 0);
-
-//    if(_eo_typeo(o) >= EOBJ_UNKNOWN)
-//        return 0;
-
-//    if(_eo_typeo(o) >= EOBJ)
-//    {
-//        switch(_eo_typec(o))
-//        {
-//            case EJSON: return ejson_free(       o);
-//            case ELL  : return ell_free  ((ell  )o);
-//            case EDICT: return edict_free((edict)o);
-//            case ERB  : return erb_free  ((erb  )o);
-//            case ESL  : return esl_free  ((esl  )o);
-//        }
-//    }
-//    else
-//    {
-//        switch(_eo_typec(o))
-//        {
-//            case EJSON: return ejson_free (   o);
-//            case ELL  : return ell_freeO  (0, o);
-//            case EDICT: return edict_freeO(0, o);
-//            case ERB  : return erb_freeO(  0, o);
-//            case ESL  : return esl_freeO  (0, o);
-//        }
-//    }
-
-//    return 0;
-//}
 
 int  eobj_cmpI(eobj o, i64    val) { return o ? _eo_typeo(o) == ENUM ? __eobj_valI(o) < val ? -1 : __eobj_valI(o) > val ? 1 : 0 : -3 : -2; }
 int  eobj_cmpF(eobj o, f64    val) { return o ? _eo_typeo(o) == ENUM ? __eobj_valF(o) < val ? -1 : __eobj_valF(o) > val ? 1 : 0 : -3 : -2; }

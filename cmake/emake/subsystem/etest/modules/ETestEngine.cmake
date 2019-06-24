@@ -52,7 +52,7 @@ macro(ETestEngineCheckPath i_dest)
     elseif(M_CREATE)
         file(MAKE_DIRECTORY ${M_FULL})
     else()
-        EMakeErrF("the DEST '${i_dest}' not exsit when adding a test for ${PROJECT_NAME}")
+        EMakeErrF("the DEST '${i_dest}' not exsit when adding a test for ${KIT_NAME}")
     endif()
 
     if(NOT EXISTS ${M_FULL}/CMakeLists.txt)
@@ -119,17 +119,17 @@ function(ETestEngineAddTest i_target)
     foreach(_case ${M_CASES})
 
         set(_is_gcc)
-        if(${_case} MATCHES ".c$")
+        if(${_case} MATCHES "(.c|.cpp|.cxx)$")
             set(_is_gcc 1)
         endif()
 
-        string(REGEX REPLACE ".[cpp|cxx|c]$" "" _case ${_case})
+        string(REGEX REPLACE "(.c|.cpp|.cxx)$" "" _case ${_case})
 
         if(_is_gcc)
             list(APPEND _gcc_cases ${_case})
         endif()
 
-        add_test(NAME "${PROJECT_NAME}:${_id}.${_case}" COMMAND ${i_target} ${_case})
+        add_test(NAME "${KIT_NAME}:${_id}.${_case}" COMMAND ${i_target} ${_case})
 
         math(EXPR _id "${_id} + 1")
     endforeach()

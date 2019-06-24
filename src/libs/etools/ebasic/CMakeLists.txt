@@ -1,4 +1,4 @@
-#![separate_kit]
+﻿#![separate_kit]
 # =====================================================================================
 #
 #       Filename:  CMakeLists.txt
@@ -79,3 +79,4 @@ set(KIT_DEPENDS
 
 
 # - 测试 -
+ETestAdd(testing ON CREATE)

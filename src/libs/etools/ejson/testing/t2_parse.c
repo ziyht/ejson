@@ -4,6 +4,7 @@
 
 #include <etest.h>
 
+#include"etime.h"
 #include "eutils.h"
 #include "ejson.h"
 
@@ -159,16 +160,16 @@ static int parse_file()
     eexpect_num(ejson_size(e), 20);
     eexpect_num(ejson_free(e), 35);
 
-    t = nowms();
+    t = e_nowms();
     e = ejson_parseF(DIR "big.json");
-    printf("parse  \t cost: %6"PRId64"ms\n", nowms() - t); fflush(stdout);
+    printf("parse  \t cost: %6"PRId64"ms\n", e_nowms() - t); fflush(stdout);
 
     eunexpc_ptr(e, 0);
     eexpect_num(ejson_size(e), 11);
 
-    t = nowms();
+    t = e_nowms();
     eexpect_num(ejson_free(e), 37778);
-    printf("release\t cost: %6"PRId64"ms\n", nowms() - t); fflush(stdout);
+    printf("release\t cost: %6"PRId64"ms\n", e_nowms() - t); fflush(stdout);
 
     return ETEST_OK;
 }

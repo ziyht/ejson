@@ -1,4 +1,4 @@
-# =====================================================================================
+﻿# =====================================================================================
 #
 #       Filename:  CMakeLists.txt
 #
@@ -25,8 +25,6 @@ cmake_minimum_required(VERSION 2.8.1)
 #     CASES    <*.c|*.cpp,...>       # 测试用例文件名, 注意: 不要包含额外路径
 #     SRCS     [*.c|*.cpp,...]       # 额外的源码文件
 #     DEPENDS  []                    # 依赖项, 若包含 Qt 库, 将会自动启用 AUTO_MOC
-#                                    #  依赖的格式可以是 pthread|LINUX 的格式
-#                                    #  表示只在 LINUX 下依赖 pthread
 # )
 #
 
@@ -47,4 +45,3 @@ ETestAddTestSet(
     TYPE    Benchmark
     CASES   ejson_benchmark.c
     )
-

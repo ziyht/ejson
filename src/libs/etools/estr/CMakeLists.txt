@@ -30,7 +30,7 @@ cmake_minimum_required(VERSION 2.8.1)
 # - 源文件 -
 set(KIT_SRCS
     [*]${KIT_DIR}/*.h
-    [*]${KIT_DIR}/*.cpp 
+    [*]${KIT_DIR}/*.cpp
     [*]${KIT_DIR}/*.c
     )
 
@@ -80,4 +80,4 @@ set(KIT_DEPENDS
 
 
 # - 测试 -
-
+ETestAdd(testing   ON)

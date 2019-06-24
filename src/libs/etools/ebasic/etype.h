@@ -19,8 +19,6 @@
 
 #define ETYPE_VERSION "etype 1.1.0"
 
-#pragma pack(1)
-
 #include <stdbool.h>
 
 #include "ealloc.h"
@@ -35,7 +33,10 @@ typedef void* cptr;
 
 #ifndef __DEF_INT__
 #define __DEF_INT__
+
+#ifndef __APPLE__
 #define __signed
+#endif
 
 #if defined(_MSC_VER)
 
@@ -94,7 +95,7 @@ typedef u64 uld;
 #error "need '_E_X64' or '_E_X86' defined so that we can known the build arch"
 #endif
 
-#if _MSC_VER
+#if defined(_MSC_VER) || defined(__APPLE__)
 
 typedef uint16_t ushort;
 typedef uint32_t uint;
@@ -124,6 +125,8 @@ typedef size_t size;
 
 #endif
 
+#pragma pack(1)
+
 typedef union eval_s{
     __i8      i8,  i8a[8], *i8p;
     __u8      u8,  u8a[8], *u8p;
@@ -144,6 +147,8 @@ typedef union eval_s{
     conptr   C_p, C_pa[1], * C_pp;  // const ver
     constr   C_s, C_sa[1], * C_sp;  // const ver
 }eval_t, eval, * evalp;
+
+#pragma pack()
 
 #define EVAL_MK(_v, v)   (eval_t){._v = v}
 
@@ -167,7 +172,5 @@ typedef union eval_s{
 
 #define EVAL_CS( v)     EVAL_MK(C_s, v)
 #define EVAL_CP( v)     EVAL_MK(C_p, v)
-
-#pragma pack()
 
 #endif

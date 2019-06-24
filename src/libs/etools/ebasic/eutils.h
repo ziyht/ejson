@@ -139,7 +139,7 @@ static constr _llog_basename(constr path){static constr slash; if (slash) {retur
  *
  *  some macro helpers
  *
- * ------------------------------------------------------
+ *  ------------------------------------------------------
  */
 
 #define exe_ret(expr, ret ) { expr;      return ret;}
@@ -180,7 +180,7 @@ static __always_inline int pow2gt(int x)	{	--x;	x|=x>>1;	x|=x>>2;	x|=x>>4;	x|=x>
  *
  *      The function returns the length of the null-terminated string
  *  representation stored at 'dest'.
-*/
+ */
 
 #define __ __always_inline
 
@@ -193,20 +193,46 @@ static __ cstr ullstr(u64 v) { static char dest[21]; ull2str(v, dest); return de
 static __ cstr  llstr_r(i64 v, cstr dest) {  ll2str(v, dest); return dest; }
 static __ cstr ullstr_r(u64 v, cstr dest) { ull2str(v, dest); return dest; }
 
-#undef __
-
-i64  eutils_nowns();
-i64  eutils_nowms();
-
-i64  nowms();
-i64  nowns();
-
 int e_strcasecmp (const char *s1, const char *s2);
 int e_strncasecmp(const char *s1, const char *s2, size_t n);
 
-int  eutils_rand();
+#undef __
 
-int  eutils_nprocs();
+
+/** -----------------------------------------------------
+ *
+ *  rand tools
+ *
+ *  rand48 - a stand-alone replacement for the 48-bit random number functions
+ *           available in Linux, OS/X, etc.
+ *
+ *  @note: rebuilt from squeamish-ossifrage/rand48
+ *
+ */
+
+int  e_rand();
+void e_srand(int seed);
+
+long e_lrand48();                   // Generate a random unsigned         int by iterating the internal buffer
+long e_mrand48();                   // Generate a random signed           int by iterating the internal buffer
+f64  e_drand48();                   // Generate a random value of type double by iterating the internal buffer
+
+long e_jrand48(u16 xsubi[3]);       // Generate a random unsigned         int by iterating an external buffer
+long e_nrand48(u16 xsubi[3]);       // Generate a random signed           int by iterating an external buffer
+f64  e_erand48(u16 xsubi[3]);       // Generate a random value of type double by iterating an external buffer
+
+void e_srand48(long seedval);       // Update seed value from a 32-bit unsigned integer
+u16* e_seed48( u16 seed16v[3]);     // Change the seed value and reset the other LCG parameters, return old seed
+
+void e_lcong48(u16 param[7]);       // Change the LCG parameters
+
+/** -----------------------------------------------------
+ *
+ *  system tools
+ *
+ */
+int  e_get_nprocs();
+
 
 cstr eutils_version();
 

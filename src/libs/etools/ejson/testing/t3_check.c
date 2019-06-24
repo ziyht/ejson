@@ -1,9 +1,10 @@
-/**
+﻿/**
 * this file is create by subsystem 'ETest' from EMake framework
 */
 
 #include <etest.h>
 
+#include "etime.h"
 #include "eutils.h"
 #include "ejson.h"
 
@@ -44,9 +45,9 @@ static int t3_check_ok_2()
 
 #define DIR MAIN_PROJECT_ROOT_DIR "src/libs/etools/ejson/testing/json/"
 
-    t = nowms();
+    t = e_nowms();
     ret = ejson_checkFEx(DIR "big.json", &err, ALL_OFF);
-    printf("check  \t cost: %6"PRId64"ms\n", nowms() - t); fflush(stdout);
+    printf("check  \t cost: %6"PRId64"ms\n", e_nowms() - t); fflush(stdout);
 
     eexpect_num(ret, 37778);
 

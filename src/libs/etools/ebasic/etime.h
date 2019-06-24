@@ -14,9 +14,16 @@
 ///
 /// =====================================================================================
 
+#ifndef __ETIME_H__
+#define __ETIME_H__
+
 #include <time.h>
 
 #include "etype.h"
+
+#ifdef __cplusplus
+extern "C" {
+#endif
 
 typedef struct etm_s {
         int     tm_sec;         /* seconds after the minute [0-60] */
@@ -31,7 +38,7 @@ typedef struct etm_s {
         long    tm_gmtoff;      /* offset from UTC in seconds */
         char    *tm_zone;       /* timezone abbreviation */
         long    tm_nsec;        /* nanoseconds */
-}etm;
+}etm_t, * etm;
 
 i64 e_nowns();
 i64 e_nowms();
@@ -132,6 +139,12 @@ i64  e_strpms (constr from, constr ffmt);                                   // p
  *   4  Jan 2 02:00:03 0000         93603
  */
 cstr e_elapsefstr(cstr dest, int dlen, constr dfmt, constr from, constr ffmt);  // format to elapse str from a time str
-cstr e_elapsefsec(cstr dest, int dlen, constr dfmt, i64 sec);                   // format to elapse str from a sec timestamp
+cstr e_elapsefsec(cstr dest, int dlen, constr dfmt, time_t sec);                // format to elapse str from a sec timestamp
 i64  e_elapsepsec(constr from, constr ffmt);                                    // parse a elapse str to passed seconds
 i64  e_elapsepms (constr from, constr ffmt);                                    // parse a elapse str to passed ms
+
+#ifdef __cplusplus
+}
+#endif
+
+#endif

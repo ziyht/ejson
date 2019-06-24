@@ -22,6 +22,8 @@
 
 #define ECOMPAT_VERSION  "ecompat 1.0.1"        // #include <fcntl.h> for all platform
 
+#include <errno.h>
+
 #ifdef __cplusplus
 extern "C" {
 #endif
@@ -91,20 +93,24 @@ extern "C" {
 /// ---------------------- string.h ---------------------
 ///
 ///
-#if defined(_WIN32) && defined(_INC_STRING)
+
+#if defined(_MSC_VER)
 
 #define memccpy  _memccpy
 #define strdup   _strdup
 
-#define __STRCHRNUL_DECLARED
-#define __MEMMEM_DECLARED
+#define strlen   (uint)strlen
 
-char* strchrnul (const char* s, int c_in);
+#define __MEMMEM_DECLARED
 void* memmem(const void *l, size_t l_len, const void *s, size_t s_len);
 
-#define strlen (uint)strlen
+#endif
 
-#endif // _INC_STRING
+#ifndef __linux__
+#define __STRCHRNUL_DECLARED
+char* strchrnul (const char* s, int c_in);
+#endif
+
 
 /// ---------------------- time.h ---------------------
 ///
