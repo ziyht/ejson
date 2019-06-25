@@ -17,7 +17,7 @@
 
 void obj_bench_init(ebench_p b)
 {
-    b->prvt.p = ejson_new(EOBJ, 0);
+    b->prvt.p = ejson_new(EOBJ, EVAL_ZORE);
 }
 
 void obj_bench_add(ebench_p b)
@@ -55,7 +55,7 @@ void obj_bench_free(ebench_p b)
 
 void arr_bench_init(ebench_p b)
 {
-    b->prvt.p = ejson_new(EARR, 0);
+    b->prvt.p = ejson_new(EARR, EVAL_ZORE);
 }
 
 void arr_bench_add(ebench_p b)

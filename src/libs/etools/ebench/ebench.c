@@ -132,7 +132,7 @@ static void __ebench_man_init()
 {
     if(!__ebench_man.cases)
     {
-        __ebench_man.cases = ejson_new(EOBJ, 0);
+        __ebench_man.cases = ejson_new(EOBJ, EVAL_ZORE);
 
         for(uint i = 0; i < T_TITLE_CNT; i++)
         {
@@ -165,9 +165,9 @@ static __ebench_p __ebench_man_new_bench(constr name)
 
         estr_wrtS(out->name, name);
 
-        out->oprts   = ejson_new(EOBJ, 0);
-        out->scales  = ejson_new(EOBJ, 0);
-        out->results = ejson_new(EARR, 0);
+        out->oprts   = ejson_new(EOBJ, EVAL_ZORE);
+        out->scales  = ejson_new(EOBJ, EVAL_ZORE);
+        out->results = ejson_new(EARR, EVAL_ZORE);
     }
     else
         out = 0;

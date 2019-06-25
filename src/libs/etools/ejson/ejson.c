@@ -1,4 +1,4 @@
-/// =====================================================================================
+﻿/// =====================================================================================
 ///
 ///       Filename:  ejson.c
 ///
@@ -429,7 +429,7 @@ return_:
  *
  *  -----------------------------------------------------
  */
-eobj   ejson_new(etypeo type, uint len)
+eobj   ejson_new(etypeo type, eval val)
 {
     _ejsn n;
 
@@ -437,12 +437,13 @@ eobj   ejson_new(etypeo type, uint len)
         case EFALSE :  _n_newTF(n);              break;
         case ETRUE  :  _n_newTT(n);              break;
         case ENULL  :  _n_newTN(n);              break;
-        case ENUM   :  _n_newIc(n);              break;
-        case EPTR   :  _n_newPc(n);              break;
-        case ESTR   :  _n_newSc(n, len);         break;
-        case ERAW   :  _n_newRc(n, len);         break;
+        case ENUM   :  _n_newI (n, val);         break;
+        case EPTR   :  _n_newP (n, val.p);       break;
+        case ESTR   :  _n_newS (n, val.s);       break;
+        case ERAW   :  _n_newRc(n, val.u32);     break;
         case EOBJ   :  _n_newO(n); _obj_init(n); break;
         case EARR   :  _n_newA(n); _arr_init(n); break;
+        case ENUM_F :  _n_newF (n, val);         break;
 
         default     :  eerrset("invalid type"); return 0;
     }
@@ -1092,15 +1093,22 @@ bool   ejson_isEmpty(eobj o) { return _ec_isEmpty(o); }
 
 void ejson_show(ejson r)
 {
-    estr s;
+    estr s; bool c_line = false;
 
     if(!r)
     {
-        puts("ejson(0x0): (null)");
+        puts("ejson(0x0): (nullptr)");
     }
 
     s = ejson_toS(r, 0, PRETTY);
-    printf("ejson(%p):\n%s\n", (cptr)r, s);
+
+    switch (_eo_typeo(r)) {
+        case EOBJ:
+        case EARR: c_line = _eo_len(r) > 0;
+    }
+
+    printf("ejson(%p):%s%s\n", (cptr)r, c_line ? "\n" : " ",  s);
+
     _s_free(s);
 
     fflush(stdout);
@@ -1310,7 +1318,7 @@ static uint __check_OBJ(constr* _src, constr* _err, __lstrip_cb lstrip)
 {
     ejson keyset; uint cnt, ret;
 
-    keyset = ejson_new(EOBJ, 0);
+    keyset = ejson_new(EOBJ, EVAL_ZORE);
     *_src  = lstrip(*_src + 1);
 
     cnt = 1;

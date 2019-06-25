@@ -1,4 +1,4 @@
-/**
+﻿/**
 * this file is create by subsystem 'ETest' from EMake framework
 */
 
@@ -12,7 +12,7 @@ static int ejson_sort_obj_test(){
 
     int i ;
 
-    ejson e = ejson_new(EOBJ, 0);
+    ejson e = ejson_new(EOBJ, EVAL_ZORE);
 
     ejson_addI(e, "9", 0);
     ejson_addI(e, "8", 1);
@@ -61,7 +61,7 @@ static int ejson_sort_obj_test(){
 static int  ejson_sort_arr_test()
 {
     int i;
-    ejson e = ejson_new(EARR, 0);
+    ejson e = ejson_new(EARR, EVAL_ZORE);
 
     ejson_addJ(e, 0, "\"9\":0");
     ejson_addJ(e, 0, "\"8\":1");

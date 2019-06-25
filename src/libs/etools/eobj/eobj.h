@@ -50,6 +50,10 @@ typedef enum{
     EOBJ   ,            // 7
     EARR   ,            // 8  // only for ejson
 
+    //! only for add val using
+    ENUM_I = ENUM,
+    ENUM_F = ENUM | 1 << 3,
+
     EOBJ_UNKNOWN  = 0x0f
 }etypeo;
 
@@ -162,9 +166,6 @@ f64    eobj_valF (eobj o);
 constr eobj_valS (eobj o);
 cptr   eobj_valP (eobj o);
 cptr   eobj_valR (eobj o);
-
-int    eobj_free  (eobj o);
-int    eobj_freeEX(eobj o, eobj_rls_cb rls);
 
 
 /** ---------------------------------------------

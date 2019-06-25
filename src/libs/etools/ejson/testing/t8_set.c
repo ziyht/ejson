@@ -1,4 +1,4 @@
-/**
+﻿/**
 * this file is create by subsystem 'ETest' from EMake framework
 */
 
@@ -28,11 +28,11 @@ static ejson gen_test_ejson(etypeo type, int deep)
 
     if(deep <= 0)
     {
-        return ejson_new(type, 0);
+        return ejson_new(type, EVAL_ZORE);
     }
     else if(deep == 1)
     {
-        r = ejson_new(type, 0);
+        r = ejson_new(type, EVAL_ZORE);
 
         i = -1;
         ++i; ejson_addT(r, &key[i], EFALSE);
@@ -52,7 +52,7 @@ static ejson gen_test_ejson(etypeo type, int deep)
     {
         deep--;
 
-        r = ejson_new(type, 0);
+        r = ejson_new(type, EVAL_ZORE);
 
         i = -1;
         ++i; ejson_addT(r, &key[i], EFALSE);
@@ -602,7 +602,7 @@ static int test_create_in_obj_p()
 
     };
 
-    r = ejson_new(EOBJ, 0);
+    r = ejson_new(EOBJ, EVAL_ZORE);
 
     ejson_addO(r, "obj", gen_test_ejson(EOBJ, 0));
 
@@ -651,7 +651,7 @@ static int test_create_in_arr_p()
 
     };
 
-    r = ejson_new(EOBJ, 0);
+    r = ejson_new(EOBJ, EVAL_ZORE);
 
     ejson_addO(r, "obj", gen_test_ejson(EARR, 0));
 
@@ -684,7 +684,7 @@ static int test_reset_particular_k()
 {
     ejson r;
 
-    r = ejson_new(EOBJ, 0);
+    r = ejson_new(EOBJ, EVAL_ZORE);
 
     // 1. create automatically when path not exsit, we only create EOBJ obj
     ejson_pSetT(r, "obj.obj", EOBJ);

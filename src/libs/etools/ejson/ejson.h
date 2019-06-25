@@ -35,7 +35,7 @@ extern "C" {
  *
  */
 
-eobj   ejson_new(etypeo type, uint len);                        // create a ejson obj
+eobj   ejson_new(etypeo type, eval v);                          // create a ejson obj
 
 eobj   ejson_parseS  (constr json);                             // parse str to ejson obj
 eobj   ejson_parseSEx(constr json, constr* err, eopts opts);    // parse str to ejson obj

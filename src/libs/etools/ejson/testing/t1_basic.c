@@ -12,15 +12,15 @@ ejson r;
 
 static int ejson_new_test()
 {
-    r = ejson_new(EFALSE, 0); eunexpc_ptr(r, 0); eexpect_num(ejson_type(r), EFALSE); eexpect_num(ejson_size(r), 0); ejson_free(r);
-    r = ejson_new(ETRUE , 0); eunexpc_ptr(r, 0); eexpect_num(ejson_type(r), ETRUE ); eexpect_num(ejson_size(r), 0); ejson_free(r);
-    r = ejson_new(ENULL , 0); eunexpc_ptr(r, 0); eexpect_num(ejson_type(r), ENULL ); eexpect_num(ejson_size(r), 0); ejson_free(r);
-    r = ejson_new(ENUM  , 0); eunexpc_ptr(r, 0); eexpect_num(ejson_type(r), ENUM  ); eexpect_num(ejson_size(r), 0); ejson_free(r);
-    r = ejson_new(ESTR  , 9); eunexpc_ptr(r, 0); eexpect_num(ejson_type(r), ESTR  ); eexpect_num(ejson_size(r), 9); ejson_free(r);
-    r = ejson_new(EPTR  , 0); eunexpc_ptr(r, 0); eexpect_num(ejson_type(r), EPTR  ); eexpect_num(ejson_size(r), 0); ejson_free(r);
-    r = ejson_new(ERAW  , 9); eunexpc_ptr(r, 0); eexpect_num(ejson_type(r), ERAW  ); eexpect_num(ejson_size(r), 9); ejson_free(r);
-    r = ejson_new(EOBJ  , 0); eunexpc_ptr(r, 0); eexpect_num(ejson_type(r), EOBJ  ); eexpect_num(ejson_size(r), 0); ejson_free(r);
-    r = ejson_new(EARR  , 0); eunexpc_ptr(r, 0); eexpect_num(ejson_type(r), EARR  ); eexpect_num(ejson_size(r), 0); ejson_free(r);
+    r = ejson_new(EFALSE, EVAL_ZORE)  ; eunexpc_ptr(r, 0); eexpect_num(ejson_type(r), EFALSE); eexpect_num(ejson_size(r), 0); ejson_free(r);
+    r = ejson_new(ETRUE , EVAL_ZORE)  ; eunexpc_ptr(r, 0); eexpect_num(ejson_type(r), ETRUE ); eexpect_num(ejson_size(r), 0); ejson_free(r);
+    r = ejson_new(ENULL , EVAL_ZORE)  ; eunexpc_ptr(r, 0); eexpect_num(ejson_type(r), ENULL ); eexpect_num(ejson_size(r), 0); ejson_free(r);
+    r = ejson_new(ENUM  , EVAL_ZORE)  ; eunexpc_ptr(r, 0); eexpect_num(ejson_type(r), ENUM  ); eexpect_num(ejson_size(r), 0); ejson_free(r);
+    r = ejson_new(ESTR  , EVAL_S("s")); eunexpc_ptr(r, 0); eexpect_num(ejson_type(r), ESTR  ); eexpect_num(ejson_size(r), 1); ejson_free(r);
+    r = ejson_new(EPTR  , EVAL_ZORE)  ; eunexpc_ptr(r, 0); eexpect_num(ejson_type(r), EPTR  ); eexpect_num(ejson_size(r), 0); ejson_free(r);
+    r = ejson_new(ERAW  , EVAL_U32(9)); eunexpc_ptr(r, 0); eexpect_num(ejson_type(r), ERAW  ); eexpect_num(ejson_size(r), 9); ejson_free(r);
+    r = ejson_new(EOBJ  , EVAL_ZORE)  ; eunexpc_ptr(r, 0); eexpect_num(ejson_type(r), EOBJ  ); eexpect_num(ejson_size(r), 0); ejson_free(r);
+    r = ejson_new(EARR  , EVAL_ZORE)  ; eunexpc_ptr(r, 0); eexpect_num(ejson_type(r), EARR  ); eexpect_num(ejson_size(r), 0); ejson_free(r);
 
     return ETEST_OK;
 }
@@ -29,7 +29,7 @@ static int ejson_add_test1()
 {
     ejson o; int i; char key[32] = "012345678901234567890", zero[32] = {0};
 
-    r = ejson_new(EOBJ, 0);
+    r = ejson_new(EOBJ, EVAL_ZORE);
 
     i = -1;
     ++i; ejson_addT(r, &key[i], EFALSE);
@@ -117,7 +117,7 @@ static int ejson_add_test2()
 {
     ejson o; int i; char key[32] = "012345678901234567890", zero[32] = {0};
 
-    r = ejson_new(EARR, 0);
+    r = ejson_new(EARR, EVAL_ZORE);
 
     i = -1;
     ++i; ejson_addT(r, 0, EFALSE);
@@ -213,7 +213,7 @@ static int ejson_rAdd_test()
 #define KEY2 "layer2"
 #define RKEY KEY1"."KEY2
 
-    r = ejson_new(EOBJ, 0);
+    r = ejson_new(EOBJ, EVAL_ZORE);
     e = ejson_addT(ejson_addT(r, KEY1, EOBJ), KEY2, EOBJ);
     e = ejson_addT(r, RKEY, EOBJ);
 
@@ -319,7 +319,7 @@ static int ejson_pAdd_test()
 #define KEY2 "layer2"
 #define KEYS KEY1"."KEY2
 
-    r = ejson_new(EOBJ, 0);
+    r = ejson_new(EOBJ, EVAL_ZORE);
     e = ejson_addT(r, KEYS, EOBJ);
     e = ejson_addT(ejson_addT(r, KEY1, EOBJ), KEY2, EOBJ);
 
@@ -433,7 +433,7 @@ static int ejson_addJ_test()
     };
     map = map1;
 
-    r = ejson_new(EOBJ, 0); i = -1;
+    r = ejson_new(EOBJ, EVAL_ZORE); i = -1;
     i++; ejson_addJ(r, 0, map[i].json); eexpect_num(ejson_size(r), i + 1); eexpect_num(ejson_rType(r, map[i].key), map[i].t );
     i++; ejson_addJ(r, 0, map[i].json); eexpect_num(ejson_size(r), i + 1); eexpect_num(ejson_rType(r, map[i].key), map[i].t );
     i++; ejson_addJ(r, 0, map[i].json); eexpect_num(ejson_size(r), i + 1); eexpect_num(ejson_rType(r, map[i].key), map[i].t );
@@ -457,7 +457,7 @@ static int ejson_addJ_test()
     };
     map = map2;
 
-    r = ejson_new(EOBJ, 0); i = -1;
+    r = ejson_new(EOBJ, EVAL_ZORE); i = -1;
     i++; ejson_addJ(r, map[i].key, map[i].json); eexpect_num(ejson_size(r), i + 1); eexpect_num(ejson_rType(r, map[i].key), map[i].t );
     i++; ejson_addJ(r, map[i].key, map[i].json); eexpect_num(ejson_size(r), i + 1); eexpect_num(ejson_rType(r, map[i].key), map[i].t );
     i++; ejson_addJ(r, map[i].key, map[i].json); eexpect_num(ejson_size(r), i + 1); eexpect_num(ejson_rType(r, map[i].key), map[i].t );
@@ -481,7 +481,7 @@ static int ejson_addJ_test()
     };
     map = map3;
 
-    r = ejson_new(EOBJ, 0); i = -1;
+    r = ejson_new(EOBJ, EVAL_ZORE); i = -1;
     i++; ejson_addJ(r, map[i].key, map[i].json); eexpect_num(ejson_size(r), i + 1); eexpect_num(ejson_rType(r, map[i].key), map[i].t );
     i++; ejson_addJ(r, map[i].key, map[i].json); eexpect_num(ejson_size(r), i + 1); eexpect_num(ejson_rType(r, map[i].key), map[i].t );
     i++; ejson_addJ(r, map[i].key, map[i].json); eexpect_num(ejson_size(r), i + 1); eexpect_num(ejson_rType(r, map[i].key), map[i].t );
@@ -509,7 +509,7 @@ static int ejson_rAddJ_test()
 #define KEY2 "layer2"
 #define RKEY KEY1"."KEY2
 
-    r = ejson_new(EOBJ, 0);
+    r = ejson_new(EOBJ, EVAL_ZORE);
     e = ejson_addT(ejson_addT(r, KEY1, EOBJ), KEY2, EOBJ);
     e = ejson_addT(r, RKEY, EOBJ);
 
@@ -615,7 +615,7 @@ static int ejson_pAddJ_test()
 #define KEY2 "layer2"
 #define KEYS KEY1"."KEY2
 
-    r = ejson_new(EOBJ, 0);
+    r = ejson_new(EOBJ, EVAL_ZORE);
     e = ejson_addT(r, RKEY, EOBJ);
     e = ejson_addT(ejson_addT(r, KEY1, EOBJ), KEY2, EOBJ);
 
