@@ -30,10 +30,17 @@ cmake_minimum_required(VERSION 2.8.1)
 # )
 #
 
-ETestAddTestSet(
+ETestAddTestSet(eutils
     TYPE    Unit
 
     CASES   test_rand.c
+
+)
+
+ETestAddTestSet(etime
+    TYPE    Unit
+
+    CASES   test_etime.c
 
 )
 

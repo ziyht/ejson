@@ -241,9 +241,9 @@ static void __ebench_man_exec_cases()
                 result->bench = bench;
                 result->scale = bench->scale;
 
-                result->start = clock() * (1000000000ll / CLOCKS_PER_SEC);
+                result->start = e_tickns();
                 oprt->oprt((ebench_p)bench);
-                result->end   = clock() * (1000000000ll / CLOCKS_PER_SEC);
+                result->end   = e_tickns();
 
                 printf(" ok\n");fflush(stdout);
 

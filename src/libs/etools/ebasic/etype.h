@@ -150,7 +150,7 @@ typedef union eval_s{
 
 #pragma pack()
 
-#define EVAL_MK(_v, v)   (eval_t){._v = v}
+#define EVAL_MK(_v, v)   ((eval_t){._v = v})
 
 #define EVAL_ZORE       EVAL_MK(p, 0)
 

@@ -36,7 +36,7 @@ static int t2_val_get()
         etypeo v_false  = ejson_rType(e, "false");  printf("%s\n"  , ejson_rTypeS(e, "false"));
         etypeo v_true   = ejson_rType(e, "true");   printf("%s\n"  , ejson_rTypeS(e, "true"));
         etypeo v_null   = ejson_rType(e, "null");   printf("%s\n"  , ejson_rTypeS(e, "null"));
-        i64    v_int    = ejson_rValI(e, "int");    printf("%lld\n", v_int);
+        i64    v_int    = ejson_rValI(e, "int");    printf("%"PRIi64"\n", v_int);
         f64    v_double = ejson_rValF(e, "double"); printf("%f\n"  , v_double);
         constr v_str    = ejson_rValS(e, "str");    printf("%s\n"  , v_str);
     }
@@ -47,7 +47,7 @@ static int t2_val_get()
         etypeo v_false  = ejson_pType(e, "arr[0]"); printf("%s\n"  , ejson_pTypeS(e, "arr[0]"));
         etypeo v_true   = ejson_pType(e, "arr[1]"); printf("%s\n"  , ejson_pTypeS(e, "arr[1]"));
         etypeo v_null   = ejson_pType(e, "arr[2]"); printf("%s\n"  , ejson_pTypeS(e, "arr[2]"));
-        i64    v_int    = ejson_pValI(e, "arr[3]"); printf("%lld\n", v_int);
+        i64    v_int    = ejson_pValI(e, "arr[3]"); printf("%"PRIi64"\n", v_int);
         f64    v_double = ejson_pValF(e, "arr[4]"); printf("%f\n"  , v_double);
         constr v_str    = ejson_pValS(e, "arr[5]"); printf("%s\n"  , v_str);
     }
@@ -56,7 +56,7 @@ static int t2_val_get()
         etypeo v_false  = ejson_pType(e, "obj.false");  printf("%s\n"  , ejson_pTypeS(e, "obj.false"));
         etypeo v_true   = ejson_pType(e, "obj.true");   printf("%s\n"  , ejson_pTypeS(e, "obj.true"));
         etypeo v_null   = ejson_pType(e, "obj.null");   printf("%s\n"  , ejson_pTypeS(e, "obj.null"));
-        i64    v_int    = ejson_pValI(e, "obj.int");    printf("%lld\n", v_int);
+        i64    v_int    = ejson_pValI(e, "obj.int");    printf("%"PRIi64"\n", v_int);
         f64    v_double = ejson_pValF(e, "obj.double"); printf("%f\n"  , v_double);
         constr v_str    = ejson_pValS(e, "obj.str");    printf("%s\n"  , v_str);
     }
@@ -65,7 +65,7 @@ static int t2_val_get()
         etypeo v_false  = ejson_pType(e, "obj.arr[0]"); printf("%s\n"  , ejson_pTypeS(e, "obj.arr[0]"));
         etypeo v_true   = ejson_pType(e, "obj.arr[1]"); printf("%s\n"  , ejson_pTypeS(e, "obj.arr[1]"));
         etypeo v_null   = ejson_pType(e, "obj.arr[2]"); printf("%s\n"  , ejson_pTypeS(e, "obj.arr[2]"));
-        i64    v_int    = ejson_pValI(e, "obj.arr[3]"); printf("%lld\n", v_int);
+        i64    v_int    = ejson_pValI(e, "obj.arr[3]"); printf("%"PRIi64"\n", v_int);
         f64    v_double = ejson_pValF(e, "obj.arr[4]"); printf("%f\n"  , v_double);
         constr v_str    = ejson_pValS(e, "obj.arr[5]"); printf("%s\n"  , v_str);
     }
