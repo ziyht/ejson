@@ -20,7 +20,7 @@
 #endif
 
 #undef  EJSON_VERSION
-#define EJSON_VERSION "ejson 1.1.5"     // return len in ejson_size and fix bug of raise coredump when err occured in file parsing
+#define EJSON_VERSION "ejson 1.1.6"     // fix some logic bugs and fix build warning
 
 #include <stdio.h>
 #include <stdlib.h>
@@ -101,7 +101,7 @@ static inline int   _dict_getBL_ex(dict d, constr k, int k_len, L l);
 static inline int   _dict_getSL   (dict d, constr k, L l);
 static inline int   _dict_getSL_ex(dict d, constr k, L l);
 
-#define _dict_link(l, n)        { _n_dnext(n) = *((l)._pos); *((l)._pos) = n; *((l)._used) += 1;}
+#define _dict_link(l, n)        do{ _n_dnext(n) = *((l)._pos); *((l)._pos) = n; *((l)._used) += 1;}while(0)
 #define _dictHashKeyS(k, l)     __djbHashS(k)
 #define _dictHashKeyB(k, l)     __djbHashB(k, l)
 
@@ -1955,13 +1955,13 @@ if(_o != n)                                                             \
 
 static eobj __ejson_makeRoom_set_k(_ejsr r, eobj in)
 {
-    dictLink_t l; _ejsn n; //uint len;
+    dictLink_t l; _ejsn n; int ret;
 
     is1_ret(!_r_o(r) || !_key_is_valid(_eo_keyS(in)), 0);
 
     switch (_r_typeo(r))
     {
-        case EOBJ:  if(!_obj_getSL_ex(r, _eo_keyS(in), &l))     //! already exist
+        case EOBJ:  if(! (ret = _obj_getSL_ex(r, _eo_keyS(in), &l)) )     //! already exist
                     {
                         uint cur_len;
 
@@ -1982,7 +1982,7 @@ static eobj __ejson_makeRoom_set_k(_ejsr r, eobj in)
                             _obj_update_node(r, n, newn, l);
                         }
                     }
-                    else
+                    else if(ret == 1)
                     {
                         n = _n_newm(_eo_len(in)); _n_init(n);
 
@@ -1990,6 +1990,8 @@ static eobj __ejson_makeRoom_set_k(_ejsr r, eobj in)
 
                         _obj_link(r, n, &l);
                     }
+                    else
+                        return 0;
 
                     return _n_o(n);
 
@@ -2468,13 +2470,13 @@ i64  ejson_pdecr(eobj r, constr path, i64 v){ return __ejson_makeRoom_counter_p(
 
 static i64 __ejson_makeRoom_counter_r(_ejsr r, constr rawk, i64 val)
 {
-    dictLink_t l; _ejsn n; //uint len;
+    dictLink_t l; _ejsn n; int ret;
 
     is1_ret(!_r_o(r) || !_key_is_valid(rawk), _ERR_COUNTOR);
 
     switch (_r_typeo(r))
     {
-        case EOBJ:  if(!_obj_getSL_ex(r, rawk, &l))     //! found
+        case EOBJ:  if(! (ret = _obj_getSL_ex(r, rawk, &l)))     //! found
                     {
                         n = *l._prev;
 
@@ -2485,7 +2487,7 @@ static i64 __ejson_makeRoom_counter_r(_ejsr r, constr rawk, i64 val)
 
                         return _ERR_COUNTOR;
                     }
-                    else
+                    else if(ret == 1)
                     {
                         _n_newI(n, val);
                         _n_setKeyS(n, _cur_dupkeyS(rawk));
