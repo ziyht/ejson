@@ -1,4 +1,4 @@
-/// =====================================================================================
+﻿/// =====================================================================================
 ///
 ///       Filename:  ebench.h
 ///
@@ -19,7 +19,8 @@
 
 typedef struct ebench_s{
     constr  name;
-    uint    scale;
+    uint    oprts;
+    uint    scale;      // you can set this after run a unit Oprt to set extra info
     eval    prvt;
 }ebench_t, * ebench, * ebench_p;
 
@@ -42,13 +43,13 @@ ebench ebench_addOprt(ebench h, constr name, ebench_cb oprt);
 ebench ebench_addStep(ebench h, constr name, ebench_cb oprt);
 
 /**
- *  add a scale for a benchmark handle
+ *  add a case for a benchmark handle
  *
  * @note:
- *  1. all oprts in this handle will be executed for every scale
- *  2. if a handle have no scales, it will be skipped when executing
+ *  1. all Callbacks in this handle will be executed for every case
+ *  2. if a handle have no case, it will be skipped when executing
  */
-ebench ebench_addScale(ebench h, uint scale);
+ebench ebench_addCase(ebench h, uint oprts);
 
 /**
  *  execute all created benchmarks

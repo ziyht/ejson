@@ -25,21 +25,23 @@
 
 #include "ebench.h"
 
-#define EBENCH_VERSION "ebench 1.0.1"
+#define EBENCH_VERSION "ebench 1.0.2"   // change add oprts, and values can be reset to do later statistics
 
 #define TITLE " EBENCHMARK "
 
 static char* t_title_map[] = {
     "OPRT" ,
-    "SCALE",
+    "OPRTS",
+    "SCALE" ,
     "COST" ,
-    "TPO",
+    "TPO"  ,
     "OPS"  ,
 };
 
 enum HDR{
     HDR_START__ = 0,
     HDR_NAME  = 0,
+    HDR_OPRTS,
     HDR_SCALE,
     HDR_COST,
     HDR_TPO,
@@ -67,15 +69,16 @@ static void __ebench_oprt_release_cb(eobj o, eval prvt) { __ebench_oprt_release(
 typedef struct __ebench_s{
 
     estr        name;
+    uint        oprts;
     uint        scale;
     eval        prvt;
 
     i64         start;
     i64         end;
 
-    ejson       oprts;
-    ejson       scales;
-    ejson       results;
+    ejson       _oprts;
+    ejson       _cases;
+    ejson       _results;
 }__ebench_t, * __ebench_p;
 
 typedef struct ebench_result_s
@@ -83,6 +86,7 @@ typedef struct ebench_result_s
     __ebench_p    bench;
     ebench_oprt_p oprt;
 
+    uint   oprts;
     uint   scale;
 
     i64    start;
@@ -102,10 +106,10 @@ static void __ebench_release(__ebench_p b)
 {
     estr_free(b->name);
 
-    ejson_freeEx(b->oprts, __ebench_oprt_release_cb, EVAL_ZORE);
+    ejson_freeEx(b->_oprts, __ebench_oprt_release_cb, EVAL_ZORE);
 
-    ejson_free(b->scales);
-    ejson_free(b->results);
+    ejson_free(b->_cases);
+    ejson_free(b->_results);
 
     memset(b, 0, sizeof(*b));
 }
@@ -165,9 +169,9 @@ static __ebench_p __ebench_man_new_bench(constr name)
 
         estr_wrtS(out->name, name);
 
-        out->oprts   = ejson_new(EOBJ, EVAL_ZORE);
-        out->scales  = ejson_new(EOBJ, EVAL_ZORE);
-        out->results = ejson_new(EARR, EVAL_ZORE);
+        out->_oprts   = ejson_new(EOBJ, EVAL_ZORE);
+        out->_cases   = ejson_new(EOBJ, EVAL_ZORE);
+        out->_results = ejson_new(EARR, EVAL_ZORE);
     }
     else
         out = 0;
@@ -192,29 +196,29 @@ static void __ebench_man_exec_cases()
     {
         __ebench_p bench = EOBJ_VALR(o);
 
-        if(ejson_isEmpty(bench->oprts))
+        if(ejson_isEmpty(bench->_oprts))
         {
             printf(" case '%s' have no oprts, skipped\n", bench->name);
             continue;
         }
 
-        if(ejson_isEmpty(bench->scales))
+        if(ejson_isEmpty(bench->_cases))
         {
-            printf(" case '%s' have no scales, skipped\n", bench->name);
+            printf(" case '%s' have no cases, skipped\n", bench->name);
             continue;
         }
 
-        ejson_clear(bench->results);
+        ejson_clear(bench->_results);
 
         printf("benchmark: %s\n", bench->name); fflush(stdout);
         int i = 0;
-        ejson_foreach_s(bench->scales, oscale)
+        ejson_foreach_s(bench->_cases, ocase)
         {
-            bench->scale = (uint)EOBJ_VALI(oscale);
+            bench->oprts = (uint)EOBJ_VALI(ocase);
 
-            ejson_foreach_s(bench->oprts, ooprt)
+            ejson_foreach_s(bench->_oprts, ooprt)
             {
-                int all = ejson_size(bench->scales) * ejson_size(bench->oprts);
+                int all = ejson_size(bench->_cases) * ejson_size(bench->_oprts);
                 int len = strlen(llstr(all));
 
                 i++;
@@ -227,7 +231,7 @@ static void __ebench_man_exec_cases()
                     oprt->oprt((ebench_p)bench);
                     printf(" ok\n");fflush(stdout);
 
-                    if(i % ejson_size(bench->oprts) == 0 && result)
+                    if(i % ejson_size(bench->_oprts) == 0 && result)
                         result->need_gap = 1;
 
                     continue;
@@ -235,19 +239,23 @@ static void __ebench_man_exec_cases()
 
                 printf("  (%*d/%*d)oprt: %s...", len, i, len, all, oprt->name); fflush(stdout);
 
-                result = EOBJ_VALR(ejson_addR(bench->results, 0, sizeof(*result)));
+                result = EOBJ_VALR(ejson_addR(bench->_results, 0, sizeof(*result)));
 
                 result->oprt  = oprt;
                 result->bench = bench;
-                result->scale = bench->scale;
 
                 result->start = e_tickns();
                 oprt->oprt((ebench_p)bench);
                 result->end   = e_tickns();
 
+                result->oprts = bench->oprts;
+                result->scale = bench->scale;
+
+                bench->oprts  = (uint)EOBJ_VALI(ocase);
+
                 printf(" ok\n");fflush(stdout);
 
-                if(i % ejson_size(bench->oprts) == 0)
+                if(i % ejson_size(bench->_oprts) == 0)
                     result->need_gap = 1;
             }
         }
@@ -266,22 +274,22 @@ static void __ebench_man_cal_results()
     {
         __ebench_p bench = EOBJ_VALR(o);
 
-        if(ejson_isEmpty(bench->oprts))
+        if(ejson_isEmpty(bench->_oprts))
         {
             continue;
         }
 
-        if(ejson_isEmpty(bench->scales))
+        if(ejson_isEmpty(bench->_cases))
         {
             continue;
         }
 
-        ejson_foreach_s(bench->results, oresult)
+        ejson_foreach_s(bench->_results, oresult)
         {
             ebench_result_p result = EOBJ_VALR(oresult);
 
             result->cost  = (f64)(result->end  - result->start);
-            result->tpo   = result->cost / result->scale;
+            result->tpo   = result->cost / result->oprts;
             result->ops   = 1e9 / result->tpo;
 
             result->cost_unit = "ns";
@@ -300,6 +308,10 @@ static void __ebench_man_cal_results()
 
             if(__ebench_man.t_cols_len[HDR_NAME] < estr_len(result->oprt->name))
                 __ebench_man.t_cols_len[HDR_NAME] = (uint)estr_len(result->oprt->name);
+
+            estr_wrtP(buf, "%" PRId64, result->oprts);
+            if(__ebench_man.t_cols_len[HDR_OPRTS] < estr_len(buf))
+                __ebench_man.t_cols_len[HDR_OPRTS] = (uint)estr_len(buf);
 
             estr_wrtP(buf, "%" PRId64, result->scale);
             if(__ebench_man.t_cols_len[HDR_SCALE] < estr_len(buf))
@@ -354,12 +366,12 @@ static void __ebench_man_format_result()
     {
         __ebench_p bench = EOBJ_VALR(o);
 
-        if(ejson_isEmpty(bench->oprts))
+        if(ejson_isEmpty(bench->_oprts))
         {
             continue;
         }
 
-        if(ejson_isEmpty(bench->scales))
+        if(ejson_isEmpty(bench->_cases))
         {
             continue;
         }
@@ -388,12 +400,13 @@ static void __ebench_man_format_result()
         }
         estr_catS(*buf, "\n");
 
-        ejson_foreach_s(bench->results, oresult)
+        ejson_foreach_s(bench->_results, oresult)
         {
             ebench_result_p result = EOBJ_VALR(oresult);
 
             estr_catP(*buf, "%-*s "        , __ebench_man.t_cols_len[HDR_NAME] , result->oprt->name);
-            estr_catP(*buf, "%*d "         , __ebench_man.t_cols_len[HDR_SCALE], result->scale     );
+            estr_catP(*buf, "%*d "         , __ebench_man.t_cols_len[HDR_OPRTS], result->oprts     );
+            estr_catP(*buf, "%*d "         , __ebench_man.t_cols_len[HDR_SCALE] , result->scale    );
             estr_catP(*buf, "%*.2f%s "     , (int)(__ebench_man.t_cols_len[HDR_COST] - strlen(result->cost_unit)),  result->cost, result->cost_unit);
             estr_catP(*buf, "%*.2f%s "     , (int)(__ebench_man.t_cols_len[HDR_TPO]  - strlen(result->tpo_unit )),  result->tpo , result->tpo_unit);
             estr_catP(*buf, "%*.2f"        , __ebench_man.t_cols_len[HDR_OPS], result->ops);
@@ -425,10 +438,10 @@ ebench ebench_addOprt(ebench b, constr name, ebench_cb oprt)
 
     __ebench_p bench = (__ebench_p)(b);
 
-    ebench_oprt_p _oprt = ejson_rValR(bench->oprts, name);
+    ebench_oprt_p _oprt = ejson_rValR(bench->_oprts, name);
     if(!_oprt)
     {
-        eobj o = ejson_addR(bench->oprts, name, sizeof(*_oprt));
+        eobj o = ejson_addR(bench->_oprts, name, sizeof(*_oprt));
 
         _oprt = EOBJ_VALR(o);
 
@@ -450,10 +463,10 @@ ebench ebench_addStep(ebench b, constr name, ebench_cb oprt)
 
     __ebench_p bench = (__ebench_p)(b);
 
-    ebench_oprt_p _oprt = ejson_rValR(bench->oprts, name);
+    ebench_oprt_p _oprt = ejson_rValR(bench->_oprts, name);
     if(!_oprt)
     {
-        eobj o = ejson_addR(bench->oprts, name, sizeof(*_oprt));
+        eobj o = ejson_addR(bench->_oprts, name, sizeof(*_oprt));
 
         _oprt = EOBJ_VALR(o);
 
@@ -470,13 +483,13 @@ ebench ebench_addStep(ebench b, constr name, ebench_cb oprt)
     return b;
 }
 
-ebench ebench_addScale (ebench b, uint scale)
+ebench ebench_addCase (ebench b, uint oprts)
 {
-    _CHECK_NULL(b); _CHECK_NULL(scale);
+    _CHECK_NULL(b); _CHECK_NULL(oprts);
 
     __ebench_p bench = (__ebench_p)(b);
 
-    ejson_addI(bench->scales, ullstr(scale), scale);
+    ejson_addI(bench->_cases, ullstr(oprts), oprts);
 
     return b;
 }
