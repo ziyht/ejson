@@ -1,205 +1,306 @@
 ﻿#include <stdio.h>
 #include <etest.h>
 
-#include "test_main.h"
+#include "estr.h"
 
-int estr_basic_test()
+static int estr_wrt_cat_W_test()
 {
-    printf("--------- estr basic test ------------\n"); fflush(stdout);
+    estr s = 0;
 
-    estr s = estr_dupS("123"); estr_show(s);
+    typedef struct {
+        constr src; constr expect;
+    } test;
+    test tests[] = {
 
-    estr_catS(s, "Hello estr!"); estr_show(s);
+        {"word"   , "word"},
+        {"word0"  , "word"},
+        {"word "  , "word"},
+        {"word\n" , "word"},
+        {"word\t" , "word"},
+        {" word"  , "word"},
+        {"\nword" , "word"},
+        {"\tword" , "word"},
+        {"w w w"  , "w"},
 
-    estr_catF(s, "%s", " an append str");estr_show(s);
+        {"1word"  , ""},
+        {"\0word" ,  ""},
 
-    char news[100] = "123";
-    estr_catB(s, news, 100); estr_show(s);
+        {0   , 0},
 
-    estr_free(s);
+    };
 
-    s = estr_newLen(0, 16); estr_show(s);
-    estr_free(s);
+    test* t = tests;
 
-    s = estr_newLen(0, 31); estr_show(s);
-    estr_free(s);
+    for(int i = 0; ;i++, t++)
+    {
+        if(!t->src)
+            break;
 
-    ///  word
-    s = 0;
-    estr_wrtW(s, "abc");        eexpect_str(s, "abc");
-    estr_wrtW(s, "bcd abc ");   eexpect_str(s, "bcd");
+        estr_clear(s);
+        estr_wrtW(s, t->src);
+        eexpect_str(s, t->expect);
 
-    estr_catW(s, "abc bcd ");   eexpect_str(s, "bcdabc");
-
-    estr_free(s);
-
-    ///  line
-    s = 0;
-    estr_wrtL(s, "abc\n");      eexpect_str(s, "abc");
-    estr_wrtL(s, "bcd\nabc");   eexpect_str(s, "bcd");
-
-    estr_catL(s, "abc\n");      eexpect_str(s, "bcdabc");
-    estr_catL(s, "abc");        eexpect_str(s, "bcdabcabc");
-
-    printf("\n\n"); fflush(stdout);
+        estr_clear(s);
+        estr_catW(s, t->src);
+        eexpect_str(s, t->expect);
+    }
 
     return ETEST_OK;
 }
 
-int estr_subc_test()
+static int estr_wrt_cat_L_test()
+{
+    estr s = 0;
+
+    typedef struct {
+        constr src; constr expect;
+    } test;
+    test tests[] = {
+
+        {"line"        , "line"},
+        {"line\n"      , "line"},
+        {"line\nline"  , "line"},
+
+        {"\nline"      , ""},
+        {"\0line"      , ""},
+
+        {0   , 0},
+
+    };
+
+    test* t = tests;
+
+    for(int i = 0; ;i++, t++)
+    {
+        if(!t->src)
+            break;
+
+        estr_clear(s);
+        estr_wrtL(s, t->src);
+        eexpect_str(s, t->expect);
+
+        estr_clear(s);
+        estr_catL(s, t->src);
+        eexpect_str(s, t->expect);
+    }
+
+    return ETEST_OK;
+}
+
+static int estr_subc_test()
 {
     estr e0, e1; cstr from, to; i64 cnt;
-
-    printf("--------- estr subc test ------------\n"); fflush(stdout);
 
     e0 = estr_dupS("abcdcbd");
     e1 = estr_dupS("aascdasdabcsbcabbccabcdf");
 
-    estr_show(e0);
-    estr_show(e1);
+    eexpect_str(e0, "abcdcbd");
+    eexpect_str(e1, "aascdasdabcsbcabbccabcdf");
+    eexpect_num(estr_len(e0), strlen("abcdcbd"));
+    eexpect_num(estr_len(e1), strlen("aascdasdabcsbcabbccabcdf"));
 
+    //! ---------------------------------
     from = "abc"; to = "1234";
-    printf("\n\"%s\" -> \"%s\":\n", from, to); fflush(stdout);
-    cnt = estr_subc(e0, from, to); estr_show(e0); eexpect_num(cnt, 2);
-    cnt = estr_subc(e1, from, to); estr_show(e1); eexpect_num(cnt, 5);
 
+    cnt = estr_subc(e0, from, to);
+    eexpect_num(cnt, 2);
+    eexpect_str(e0, "123d12d");
+    eexpect_num(estr_len(e0), strlen(e0));
+
+    cnt = estr_subc(e1, from, to);
+    eexpect_num(cnt, 5);
+    eexpect_str(e1, "12s1d1sd123s1234df");
+    eexpect_num(estr_len(e1), strlen(e1));
+
+    //! ---------------------------------
     from = "1234"; to = "*";
-    printf("\n\"%s\" -> \"%s\":\n", from, to); fflush(stdout);
-    cnt = estr_subc(e0, from, to); estr_show(e0); eexpect_num(cnt, 2);
-    cnt = estr_subc(e1, from, to); estr_show(e1); eexpect_num(cnt, 5);
+
+    cnt = estr_subc(e0, from, to);
+    eexpect_num(cnt, 2);
+    eexpect_num(estr_len(e0), strlen(e0));
+    eexpect_str(e0, "*d*d");
+
+    cnt = estr_subc(e1, from, to);
+    eexpect_num(cnt, 5);
+    eexpect_num(estr_len(e1), strlen(e1));
+    eexpect_str(e1, "*s*d*sd*s*df");
 
     estr_free(e0);
     estr_free(e1);
-
-    printf("\n\n"); fflush(stdout);
 
     return ETEST_OK;
 }
 
 int estr_subs_test()
 {
-    estr e0 = 0, e1 = 0, e2 = 0, e3 = 0; cstr from, to; i64 cnt;
-
-    printf("--------- estr subs test ------------\n"); fflush(stdout);
+    estr e0 = 0, e1 = 0, e2 = 0, e3 = 0, e; cstr from, to; i64 cnt;
 
     e0 = estr_dupS("abcdasd");
     e1 = estr_dupS("abcd${PATH}asdasdf");
     e2 = estr_dupS("abcd${PATH}asdasdf${PATH}");
     e3 = estr_dupS("abcd${PATH}asdasdf${PATH}.../sdf///${PATH}fd%asd");
-    estr_show(e0);
-    estr_show(e1);
-    estr_show(e2);
-    estr_show(e3);
 
+    e = e0; eexpect_num(estr_len(e), strlen(e));
+    e = e1; eexpect_num(estr_len(e), strlen(e));
+    e = e2; eexpect_num(estr_len(e), strlen(e));
+    e = e3; eexpect_num(estr_len(e), strlen(e));
+
+    //! ---------------------------------
     from = "${PATH}"; to = "${}";
-    printf("\n\"%s\" -> \"%s\":\n", from, to); fflush(stdout);
-    cnt = estr_subs(e0, from, to); estr_show(e0); eexpect_num(cnt, 0);
-    cnt = estr_subs(e1, from, to); estr_show(e1); eexpect_num(cnt, 1);
-    cnt = estr_subs(e2, from, to); estr_show(e2); eexpect_num(cnt, 2);
-    cnt = estr_subs(e3, from, to); estr_show(e3); eexpect_num(cnt, 3);
 
+    e = e0;
+    cnt = estr_subs(e, from, to);
+    eexpect_num(cnt, 0);
+    eexpect_num(estr_len(e), strlen(e));
+    eexpect_str(e, "abcdasd");
+
+    e = e1;
+    cnt = estr_subs(e, from, to);
+    eexpect_num(cnt, 1);
+    eexpect_num(estr_len(e), strlen(e));
+    eexpect_str(e, "abcd${}asdasdf");
+
+    e = e2;
+    cnt = estr_subs(e, from, to);
+    eexpect_num(cnt, 2);
+    eexpect_num(estr_len(e), strlen(e));
+    eexpect_str(e, "abcd${}asdasdf${}");
+
+    e = e3;
+    cnt = estr_subs(e, from, to);
+    eexpect_num(cnt, 3);
+    eexpect_num(estr_len(e), strlen(e));
+    eexpect_str(e, "abcd${}asdasdf${}.../sdf///${}fd%asd");
+
+    //! ---------------------------------
     from = "${}"; to = "${PATH}";
-    printf("\n\"%s\" -> \"%s\":\n", from, to); fflush(stdout);
-    cnt = estr_subs(e0, from, to); estr_show(e0); eexpect_num(cnt, 0);
-    cnt = estr_subs(e1, from, to); estr_show(e1); eexpect_num(cnt, 1);
-    cnt = estr_subs(e2, from, to); estr_show(e2); eexpect_num(cnt, 2);
-    cnt = estr_subs(e3, from, to); estr_show(e3); eexpect_num(cnt, 3);
 
+    e = e0;
+    cnt = estr_subs(e, from, to);
+    eexpect_num(cnt, 0);
+    eexpect_num(estr_len(e), strlen(e));
+    eexpect_str(e, "abcdasd");
+    e0 = e;
+
+    e = e1;
+    cnt = estr_subs(e, from, to);
+    eexpect_num(cnt, 1);
+    eexpect_num(estr_len(e), strlen(e));
+    eexpect_str(e, "abcd${PATH}asdasdf");
+    e1 = e;
+
+    e = e2;
+    cnt = estr_subs(e, from, to);
+    eexpect_num(cnt, 2);
+    eexpect_num(estr_len(e), strlen(e));
+    eexpect_str(e, "abcd${PATH}asdasdf${PATH}");
+    e2 = e;
+
+    e = e3;
+    cnt = estr_subs(e, from, to);
+    eexpect_num(cnt, 3);
+    eexpect_num(estr_len(e), strlen(e));
+    eexpect_str(e, "abcd${PATH}asdasdf${PATH}.../sdf///${PATH}fd%asd");
+    e3 = e;
+
+    //! ---------------------------------
     from = "${PATH}"; to = "${abcd}";
-    printf("\n\"%s\" -> \"%s\":\n", from, to); fflush(stdout);
-    cnt = estr_subs(e0, from, to); estr_show(e0); eexpect_num(cnt, 0);
-    cnt = estr_subs(e1, from, to); estr_show(e1); eexpect_num(cnt, 1);
-    cnt = estr_subs(e2, from, to); estr_show(e2); eexpect_num(cnt, 2);
-    cnt = estr_subs(e3, from, to); estr_show(e3); eexpect_num(cnt, 3);
 
+    e = e0;
+    cnt = estr_subs(e, from, to);
+    eexpect_num(cnt, 0);
+    eexpect_num(estr_len(e), strlen(e));
+    eexpect_str(e, "abcdasd");
+
+    e = e1;
+    cnt = estr_subs(e, from, to);
+    eexpect_num(cnt, 1);
+    eexpect_num(estr_len(e), strlen(e));
+    eexpect_str(e, "abcd${abcd}asdasdf");
+
+    e = e2;
+    cnt = estr_subs(e, from, to);
+    eexpect_num(cnt, 2);
+    eexpect_num(estr_len(e), strlen(e));
+    eexpect_str(e, "abcd${abcd}asdasdf${abcd}");
+
+    e = e3;
+    cnt = estr_subs(e, from, to);
+    eexpect_num(cnt, 3);
+    eexpect_num(estr_len(e), strlen(e));
+    eexpect_str(e, "abcd${abcd}asdasdf${abcd}.../sdf///${abcd}fd%asd");
+
+    //! ---------------------------------
     from = "${abcd}"; to = "${abcde}";
-    printf("\n\"%s\" -> \"%s\":\n", from, to); fflush(stdout);
-    cnt = estr_subs(e0, from, to); estr_show(e0); eexpect_num(cnt, 0);
-    cnt = estr_subs(e1, from, to); estr_show(e1); eexpect_num(cnt, 10);
-    cnt = estr_subs(e2, from, to); estr_show(e2); eexpect_num(cnt, 2);
-    cnt = estr_subs(e3, from, to); estr_show(e3); eexpect_num(cnt, 3);
+    e = e0;
+    cnt = estr_subs(e, from, to);
+    eexpect_num(cnt, 0);
+    eexpect_num(estr_len(e), strlen(e));
+    eexpect_str(e, "abcdasd");
+    e0 = e;
 
+    e = e1;
+    cnt = estr_subs(e, from, to);
+    eexpect_num(cnt, 1);
+    eexpect_num(estr_len(e), strlen(e));
+    eexpect_str(e, "abcd${abcde}asdasdf");
+    e1 = e;
+
+    e = e2;
+    cnt = estr_subs(e, from, to);
+    eexpect_num(cnt, 2);
+    eexpect_num(estr_len(e), strlen(e));
+    eexpect_str(e, "abcd${abcde}asdasdf${abcde}");
+    e2 = e;
+
+    e = e3;
+    cnt = estr_subs(e, from, to);
+    eexpect_num(cnt, 3);
+    eexpect_num(estr_len(e), strlen(e));
+    eexpect_str(e, "abcd${abcde}asdasdf${abcde}.../sdf///${abcde}fd%asd");
+    e3 = e;
+
+    //! ---------------------------------
     from = "${abcde}"; to = "";
-    printf("\n\"%s\" -> \"%s\":\n", from, to); fflush(stdout);
-    cnt = estr_subs(e0, from, to); estr_show(e0); eexpect_num(cnt, 0);
-    cnt = estr_subs(e1, from, to); estr_show(e1); eexpect_num(cnt, 1);
-    cnt = estr_subs(e2, from, to); estr_show(e2); eexpect_num(cnt, 2);
-    cnt = estr_subs(e3, from, to); estr_show(e3); eexpect_num(cnt, 3);
+    e = e0;
+    cnt = estr_subs(e, from, to);
+    eexpect_num(cnt, 0);
+    eexpect_num(estr_len(e), strlen(e));
+    eexpect_str(e, "abcdasd");
+
+    e = e1;
+    cnt = estr_subs(e, from, to);
+    eexpect_num(cnt, 1);
+    eexpect_num(estr_len(e), strlen(e));
+    eexpect_str(e, "abcdasdasdf");
+
+    e = e2;
+    cnt = estr_subs(e, from, to);
+    eexpect_num(cnt, 2);
+    eexpect_num(estr_len(e), strlen(e));
+    eexpect_str(e, "abcdasdasdf");
+
+    e = e3;
+    cnt = estr_subs(e, from, to);
+    eexpect_num(cnt, 3);
+    eexpect_num(estr_len(e), strlen(e));
+    eexpect_str(e, "abcdasdasdf.../sdf///fd%asd");
 
     estr_free(e0);
     estr_free(e1);
     estr_free(e2);
     estr_free(e3);
-
-    printf("\n\n"); fflush(stdout);
-
-    return ETEST_OK;
-}
-
-int estr_auto_create_test()
-{
-    estr e0 = 0, e1 = 0, e2 = 0, e3 = 0; cstr from, to;
-
-    printf("--------- estr auto create subs test ------------\n"); fflush(stdout);
-
-    estr_wrtS(e0, "abcdasd");
-    estr_wrtS(e1, "abcd${PATH}asdasdf");
-    estr_wrtS(e2, "abcd${PATH}asdasdf${PATH}");
-    estr_wrtS(e3, "abcd${PATH}asdasdf${PATH}.../sdf///${PATH}fd%asd");
-    estr_show(e0);
-    estr_show(e1);
-    estr_show(e2);
-    estr_show(e3);
-
-    from = "${PATH}"; to = "${}";
-    printf("\n\"%s\" -> \"%s\":\n", from, to); fflush(stdout);
-    estr_subs(e0, from, to); estr_show(e0);
-    estr_subs(e1, from, to); estr_show(e1);
-    estr_subs(e2, from, to); estr_show(e2);
-    estr_subs(e3, from, to); estr_show(e3);
-
-    from = "${}"; to = "${PATH}";
-    printf("\n\"%s\" -> \"%s\":\n", from, to); fflush(stdout);
-    estr_subs(e0, from, to); estr_show(e0);
-    estr_subs(e1, from, to); estr_show(e1);
-    estr_subs(e2, from, to); estr_show(e2);
-    estr_subs(e3, from, to); estr_show(e3);
-
-    from = "${PATH}"; to = "${abcd}";
-    printf("\n\"%s\" -> \"%s\":\n", from, to); fflush(stdout);
-    estr_subs(e0, from, to); estr_show(e0);
-    estr_subs(e1, from, to); estr_show(e1);
-    estr_subs(e2, from, to); estr_show(e2);
-    estr_subs(e3, from, to); estr_show(e3);
-
-    from = "${abcd}"; to = "${abcde}";
-    printf("\n\"%s\" -> \"%s\":\n", from, to); fflush(stdout);
-    estr_subs(e0, from, to); estr_show(e0);
-    estr_subs(e1, from, to); estr_show(e1);
-    estr_subs(e2, from, to); estr_show(e2);
-    estr_subs(e3, from, to); estr_show(e3);
-
-    from = "${abcde}"; to = "";
-    printf("\n\"%s\" -> \"%s\":\n", from, to); fflush(stdout);
-    estr_subs(e0, from, to); estr_show(e0);
-    estr_subs(e1, from, to); estr_show(e1);
-    estr_subs(e2, from, to); estr_show(e2);
-    estr_subs(e3, from, to); estr_show(e3);
-
-    estr_free(e0);
-    estr_free(e1);
-    estr_free(e2);
-    estr_free(e3);
-
-    printf("\n\n"); fflush(stdout);
 
     return ETEST_OK;
 }
 
 int test_estr(int argc, char* argv[])
 {
-    ETEST_RUN(estr_basic_test());
-    ETEST_RUN(estr_auto_create_test());
+    ETEST_RUN( estr_wrt_cat_W_test() );
+    ETEST_RUN( estr_wrt_cat_L_test() );
+
+    ETEST_RUN( estr_subc_test() );
+    ETEST_RUN( estr_subs_test() );
 
     return ETEST_OK;
 }

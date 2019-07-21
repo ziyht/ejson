@@ -1,4 +1,4 @@
-﻿/// =====================================================================================
+/// =====================================================================================
 ///
 ///       Filename:  ebench.h
 ///
@@ -21,10 +21,12 @@ typedef struct ebench_s{
     constr  name;
     uint    oprts;
     uint    scale;      // you can set this after run a unit Oprt to set extra info
-    eval    prvt;
+    eval    bprvt;      // private data for ebench handle
+    eval    oprvt;      // private data for operation
+    eval    cprvt;      // private data for each case
 }ebench_t, * ebench, * ebench_p;
 
-typedef void (*ebench_cb)(ebench_p b);
+typedef void (*ebench_cb)(ebench b);
 
 ebench ebench_new(constr name);    // create a new ebench handle in internal engine, return 0 if already exists
 ebench ebench_get(constr name);    // find ebench handle, return 0 if not exists
@@ -39,8 +41,8 @@ ebench ebench_get(constr name);    // find ebench handle, return 0 if not exists
  *  some like oprts.
  *
  */
-ebench ebench_addOprt(ebench h, constr name, ebench_cb oprt);
-ebench ebench_addStep(ebench h, constr name, ebench_cb oprt);
+ebench ebench_addOprt(ebench h, constr name, ebench_cb oprt, eval prvt);
+ebench ebench_addStep(ebench h, constr name, ebench_cb oprt, eval prvt);
 
 /**
  *  add a case for a benchmark handle
@@ -49,12 +51,13 @@ ebench ebench_addStep(ebench h, constr name, ebench_cb oprt);
  *  1. all Callbacks in this handle will be executed for every case
  *  2. if a handle have no case, it will be skipped when executing
  */
-ebench ebench_addCase(ebench h, uint oprts);
+ebench ebench_addCase(ebench h, uint oprts, eval prvt);
 
 /**
  *  execute all created benchmarks
  */
 void   ebench_exec();
+void   ebench_skipCase(uint oprts1, uint oprts2);
 
 void   ebench_showResult();
 constr ebench_getResult();

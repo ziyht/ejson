@@ -23,7 +23,7 @@
 
 #include "etime.h"
 
-#define  ETIME_VERION "1.1.0"   // compat to main platforms(WIN, LINUX, MAXOS)
+#define  ETIME_VERION "etime 1.1.0"   // compat to main platforms(WIN, LINUX, MAXOS)
 
 #if defined(__linux) || defined(__APPLE__)
 #include <ctype.h>

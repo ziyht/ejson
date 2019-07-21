@@ -89,7 +89,7 @@ typedef char *sds;
  *
  * ------------------------------------------------------
  */
-#define _s_new(l)           __sdsNewRoom(l)                     //
+#define _s_new(l)           __sdsNewRoom(l)
 #define _s_free(s)          efree(s - _s_lenH(SDS_TYPE(s)))
 #define _s_reqT(s)          __sdsReqType(s)
 #define _s_lenH(t)          __sdsHdrSize(t)
@@ -98,9 +98,9 @@ typedef char *sds;
 #define _s_cap(s)           __sdsalloc(s)
 #define _s_setLen(s,l)      __sdssetlen(s,l)
 #define _s_setCap(s,l)      __sdssetalloc(s,l)
-#define _s_incLen(s,l)      __sdsinclen(s,l)        //  for inner using
+#define _s_incLen(s,l)      __sdsinclen(s,l)        // for inner using
 #define _s_decLen(s,l)      __sdsdeclen(s,l)
-#define _s_incrLen(s,l)     __sdsincrlen(s,l)       // for Low level functions using
+#define _s_incrLen(s,l)     __sdsincrlen(s,l)       // for Low level functions using, more safe than __sdsinclen()
 #define _s_ensure(s,l)      do{ if(_s_avail(s) < (l)) s = __sdsMakeRoomFor(s, (l)); } while(0)
 #define _s_setStack(s)      (SDS_TYPE(s) |= SDS_STACK_MASK)
 #define _s_isStack(s)       ((SDS_TYPE(s) & SDS_STACK_MASK) && (SDS_TYPE_5 != (SDS_TYPE(s)&SDS_TYPE_MASK)))
@@ -282,10 +282,6 @@ static sds __sdsNewRoom(size_t len)
 
 static sds __sdsMakeRoomFor(sds s, size_t addlen) {
     char *sh, *newsh; size_t len, newlen; char type, oldtype; int hdrlen;
-
-    // size_t avail   = __sdsavail(s);
-    /* Return ASAP if there is enough space left. */        // <----- checked before call
-    // if (avail >= addlen) return s;
 
     oldtype = SDS_TYPE(s) & SDS_TYPE_MASK;
     len     = __sdslen(s);

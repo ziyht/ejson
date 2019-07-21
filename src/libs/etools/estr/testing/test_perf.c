@@ -2,8 +2,8 @@
 
 #include "eutils.h"
 #include "etime.h"
-
-#include "test_main.h"
+#include "estr.h"
+#include "etest.h"
 
 static int estr_split_perf_test_fun(int cnt)
 {

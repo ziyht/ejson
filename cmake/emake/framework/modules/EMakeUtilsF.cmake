@@ -430,7 +430,7 @@ function(EMakeGetPlatformVar _var)
 
     set(var ${${_var}})
 
-    if(${var} MATCHES ".?\\|[^\]]+$")
+    if("${var}" MATCHES ".?\\|[^\]]+$")
 
         string(REGEX REPLACE "^.*\\|" ""  _platforms ${var})    # 去除 所有 *|
 
@@ -439,7 +439,7 @@ function(EMakeGetPlatformVar _var)
         if(NOT _passed)
             set(${_var} PARENT_SCOPE)
         else()
-            string(REGEX REPLACE "\\|[^\]]+$" ""  var ${var}) # 去除 最后一个 |*
+            string(REGEX REPLACE "\\|[^\]^\)]+$" ""  var ${var}) # 去除 最后一个 |*
             set(${_var} ${var} PARENT_SCOPE)
 
         endif()
@@ -447,6 +447,29 @@ function(EMakeGetPlatformVar _var)
     endif()
 
 endfunction()
+
+macro(__getMatchedFiles _var)
+
+    set(var ${${_var}})
+
+    string(REGEX REPLACE "^.*/"    ""  _reg ${var})
+    string(      REPLACE "${_reg}" ""  _dir ${var})
+
+    file(GLOB _fd_files RELATIVE ${_dir} ${_dir}*)
+
+    set(o_files)
+
+    foreach(_file ${_fd_files})
+
+        if(${_file} MATCHES "${_reg}")
+
+            list(APPEND o_files ${_dir}${_file})
+
+        endif()
+
+    endforeach()
+
+endmacro()
 
 #
 # i_list : input regex file list
@@ -458,6 +481,7 @@ function(EMakeParseInputFiles i_list _o_list c_file )
     set(o_list)
 
     set(_cache)
+    set(_cache_reg)
     set(_state)
 
     foreach(item ${i_list})
@@ -475,9 +499,9 @@ please check you project file:
 
         if(item)
 
-            if(${item} MATCHES "^\\[\\*\\]*" OR EXISTS ${item})
+            if("${item}" MATCHES "^\\[\\*\\]*")
 
-                string(REGEX REPLACE "^\\[\\*\\]" "" item ${item})
+                string(REGEX REPLACE "^\\[\\*\\]" "" item "${item}")
 
                 if(_state EQUAL 2)
                     file(GLOB _SRCS_ ${_cache})
@@ -488,18 +512,54 @@ please check you project file:
                 list(APPEND _cache ${item})
                 set(_state 1)
 
-            elseif(${item} MATCHES "^\\[\\-\\]*")
+            elseif("${item}" MATCHES "^\\[[Rr]\\]*")
 
-                string(REGEX REPLACE "^\\[\\-\\]" "" item ${item})
+                string(REGEX REPLACE "^\\[[Rr]\\]" "" item "${item}")
 
-                if(_state EQUAL 1)
+                if(_state EQUAL 2)
                     file(GLOB _SRCS_ ${_cache})
-                    list(APPEND o_list ${_SRCS_})
+                    list(REMOVE_ITEM o_list ${_SRCS_};"")
                     set(_cache)
                 endif()
 
-                list(APPEND _cache ${item})
+                list(APPEND _cache_reg ${item})
+                set(_state 1)
+
+            elseif("${item}" MATCHES "^\\[\\-\\]*")
+
+                string(REGEX REPLACE "^\\[\\-\\]" "" item "${item}")
+
+                if(_state EQUAL 1)
+
+                    if(_cache)
+                        file(GLOB _SRCS_ ${_cache})
+                        list(APPEND o_list ${_SRCS_})
+                        set(_cache)
+                    endif()
+
+                    if(_cache_reg)
+                        foreach(_reg ${_cache_reg})
+
+                            __getMatchedFiles(_reg)
+                            list(APPEND o_list ${o_files})
+                            set(_cache_reg)
+
+                        endforeach()
+                    endif()
+                endif()
+
+                list(APPEND _cache "${item}")
                 set(_state 2)
+
+            elseif(EXISTS ${item})
+
+                if(_state EQUAL 2)
+                    file(GLOB _SRCS_ ${_cache})
+                    list(REMOVE_ITEM o_list ${_SRCS_};"")
+                    set(_cache)
+                endif()
+
+                list(APPEND o_list ${item})
 
             else()
 
@@ -515,8 +575,21 @@ please check you project file:
     endforeach()
 
     if(_state EQUAL 1)
-        file(GLOB _SRCS_ ${_cache})
-        list(APPEND o_list ${_SRCS_})
+        if(_cache)
+            file(GLOB _SRCS_ ${_cache})
+            list(APPEND o_list ${_SRCS_})
+            set(_cache)
+        endif()
+
+        if(_cache_reg)
+            foreach(_reg ${_cache_reg})
+
+                __getMatchedFiles(_reg)
+                list(APPEND o_list ${o_files})
+                set(_cache_reg)
+
+            endforeach()
+        endif()
     elseif(_state EQUAL 2)
         file(GLOB _SRCS_ ${_cache})
         list(REMOVE_ITEM o_list ${_SRCS_};"")

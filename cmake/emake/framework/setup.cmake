@@ -33,13 +33,17 @@ elseif(MSVC)
 
 else()
 
-    set(_W_FLAGS  "-Wall -Wextra -Wcast-align -Wno-unused-variable -Wno-unused-parameter -Wno-unused-function -Wuninitialized -Wno-switch")
+    set(_W_FLAGS  "-Wall -Wextra -Wcast-align -Wno-unused-variable -Wno-unused-parameter -Wno-unused-function -Wuninitialized -Wno-switch -Wno-strict-aliasing")
 
-    set(CMAKE_C_FLAGS_DEBUG     "-g -O0 -pedantic -std=gnu99 -fPIC ${_W_FLAGS}")
-    set(CMAKE_C_FLAGS_RELEASE   "   -O2 -pedantic -std=gnu99 -fPIC ${_W_FLAGS}")
+    set(CMAKE_C_FLAGS_DEBUG             "-g -O0 -pedantic -std=gnu99 -fPIC ${_W_FLAGS}")
+    set(CMAKE_C_FLAGS_RELEASE           "   -O2 -pedantic -std=gnu99 -fPIC ${_W_FLAGS}")
+    set(CMAKE_C_FLAGS_RELWITHDEBINFO    "   -O2 -pedantic -std=gnu99 -fPIC ${_W_FLAGS}")
+    set(CMAKE_C_FLAGS_MINSIZEREL        "   -O2 -pedantic -std=gnu99 -fPIC ${_W_FLAGS}")
 
-    set(CMAKE_CXX_FLAGS_DEBUG   "-g -O0 -pedantic -fPIC ${_W_FLAGS}")
-    set(CMAKE_CXX_FLAGS_RELEASE "   -O2 -pedantic -fPIC ${_W_FLAGS}")
+    set(CMAKE_CXX_FLAGS_DEBUG           "-g -O0 -pedantic -fPIC ${_W_FLAGS}")
+    set(CMAKE_CXX_FLAGS_RELEASE         "   -O2 -pedantic -fPIC ${_W_FLAGS}")
+    set(CMAKE_CXX_FLAGS_RELWITHDEBINFO  "   -O2 -pedantic -fPIC ${_W_FLAGS}")
+    set(CMAKE_CXX_FLAGS_MINSIZEREL      "   -O2 -pedantic -fPIC ${_W_FLAGS}")
 endif()
 
 

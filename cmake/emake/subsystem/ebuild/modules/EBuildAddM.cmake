@@ -63,32 +63,26 @@ function(_createTemplatesForKit i_name i_type)
         file(MAKE_DIRECTORY ${_dir})
     endif()
 
-    set(f1_is_created 1)
-    set(f2_is_created 1)
-    set(f3_is_created 1)
-
-#    if(NOT EXISTS ${_dir}/setupManifist.cmake)
-#        file(COPY ${_${i_type}_TEMPLATES_DIR}/setupManifist.cmake DESTINATION ${_dir})
-#        set(f1_is_created 0)
-#    endif()
-
-    if(NOT EXISTS ${_dir}/CMakeLists.txt)
+    if(EXISTS ${_dir}/CMakeLists.txt)
+        EMakeInfF("created already of '${i_type}::${i_name}'")
+        return()
+    else()
+        EMakeInfF("creating '${i_type}::${i_name}' at ${_dir}")
         file(COPY ${_${i_type}_TEMPLATES_DIR}/CMakeLists.txt DESTINATION ${_dir})
-        set(f2_is_created 0)
     endif()
 
     if(${i_type} STREQUAL "APP")
-        if(NOT EXISTS ${_dir}/${i_name}.c)
+
+        if(EXISTS $${_dir}/${i_name}.c OR EXISTS $${_dir}/${i_name}.cpp)
+        else()
+
             file(COPY ${_${i_type}_TEMPLATES_DIR}/main.c DESTINATION ${_dir})
             file(RENAME ${_dir}/main.c ${_dir}/${i_name}.c)
-            set(f3_is_created 0)
-        endif()
-    endif()
 
-    if(f1_is_created AND f2_is_created AND f3_is_created)
-        EMakeInfF("created already of '${i_type}::${i_name}'")
-    else()
-        EMakeInfF("creating '${i_type}::${i_name}' at ${_dir}")
+            EMakeInfF("creating '${i_type}::${i_name}' at ${_dir}")
+
+        endif()
+
     endif()
 
 endfunction()

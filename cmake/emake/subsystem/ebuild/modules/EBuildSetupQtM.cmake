@@ -21,8 +21,6 @@ macro(_configuring_qt_core)
 
         if(QT_VERSION VERSION_GREATER "4")
 
-            cmake_policy(SET CMP0053 OLD)
-
             find_package(Qt5 COMPONENTS Core Gui)
 
             if(NOT Qt5_FOUND)

@@ -25,7 +25,7 @@
 
 #include "ebench.h"
 
-#define EBENCH_VERSION "ebench 1.0.2"   // change add oprts, and values can be reset to do later statistics
+#define EBENCH_VERSION "ebench 1.0.1"
 
 #define TITLE " EBENCHMARK "
 
@@ -55,6 +55,7 @@ typedef struct ebench_oprt_s
 {
     estr      name;
     ebench_cb oprt;
+    eval      prvt;
 
     bool      is_step;
 }ebench_oprt_t, * ebench_oprt_p;
@@ -66,12 +67,20 @@ static void __ebench_oprt_release(ebench_oprt_p p)
 
 static void __ebench_oprt_release_cb(eobj o, eval prvt) { __ebench_oprt_release(EOBJ_VALR(o)); }
 
+typedef struct __ebench_case_s
+{
+    uint    oprts;
+    eval    cprvt;
+}__ebench_case_t, * __ebench_case;
+
 typedef struct __ebench_s{
 
     estr        name;
     uint        oprts;
     uint        scale;
-    eval        prvt;
+    eval        bprvt;
+    eval        oprvt;
+    eval        cprvt;
 
     i64         start;
     i64         end;
@@ -131,6 +140,8 @@ typedef struct __ebench_man_s{
 }__ebench_man_t;
 
 static __ebench_man_t __ebench_man;
+static uint           __skip_low;
+static uint           __skip_high;
 
 static void __ebench_man_init()
 {
@@ -198,13 +209,13 @@ static void __ebench_man_exec_cases()
 
         if(ejson_isEmpty(bench->_oprts))
         {
-            printf(" case '%s' have no oprts, skipped\n", bench->name);
+            printf(" bench '%s' have no oprts, skipped\n", bench->name);
             continue;
         }
 
         if(ejson_isEmpty(bench->_cases))
         {
-            printf(" case '%s' have no cases, skipped\n", bench->name);
+            printf(" bench '%s' have no cases, skipped\n", bench->name);
             continue;
         }
 
@@ -214,7 +225,16 @@ static void __ebench_man_exec_cases()
         int i = 0;
         ejson_foreach_s(bench->_cases, ocase)
         {
-            bench->oprts = (uint)EOBJ_VALI(ocase);
+            __ebench_case c = EOBJ_VALR(ocase);
+
+            bench->oprts = c->oprts;
+            bench->cprvt = c->cprvt;
+
+            if(bench->oprts >= __skip_low && bench->oprts <= __skip_high)
+            {
+                printf(" skipped '%s:%d'\n", bench->name, bench->oprts);
+                continue;
+            }
 
             ejson_foreach_s(bench->_oprts, ooprt)
             {
@@ -243,6 +263,8 @@ static void __ebench_man_exec_cases()
 
                 result->oprt  = oprt;
                 result->bench = bench;
+
+                bench->oprvt  = oprt->prvt;
 
                 result->start = e_tickns();
                 oprt->oprt((ebench_p)bench);
@@ -309,11 +331,11 @@ static void __ebench_man_cal_results()
             if(__ebench_man.t_cols_len[HDR_NAME] < estr_len(result->oprt->name))
                 __ebench_man.t_cols_len[HDR_NAME] = (uint)estr_len(result->oprt->name);
 
-            estr_wrtP(buf, "%" PRId64, result->oprts);
+            estr_wrtP(buf, "%u", result->oprts);
             if(__ebench_man.t_cols_len[HDR_OPRTS] < estr_len(buf))
                 __ebench_man.t_cols_len[HDR_OPRTS] = (uint)estr_len(buf);
 
-            estr_wrtP(buf, "%" PRId64, result->scale);
+            estr_wrtP(buf, "%u", result->scale);
             if(__ebench_man.t_cols_len[HDR_SCALE] < estr_len(buf))
                 __ebench_man.t_cols_len[HDR_SCALE] = (uint)estr_len(buf);
 
@@ -432,7 +454,7 @@ ebench ebench_get(constr name)
 
 #define _CHECK_NULL(p) do{if(!p){printf("%s:'%s' can not be null, abort\n", __FUNCTION__, #p); abort();}}while(0)
 
-ebench ebench_addOprt(ebench b, constr name, ebench_cb oprt)
+ebench ebench_addOprt(ebench b, constr name, ebench_cb oprt, eval prvt)
 {
     _CHECK_NULL(b); _CHECK_NULL(name); _CHECK_NULL(oprt);
 
@@ -447,6 +469,7 @@ ebench ebench_addOprt(ebench b, constr name, ebench_cb oprt)
 
         estr_wrtS(_oprt->name, name);
         _oprt->oprt = oprt;
+        _oprt->prvt = prvt;
     }
     else
     {
@@ -457,7 +480,7 @@ ebench ebench_addOprt(ebench b, constr name, ebench_cb oprt)
     return b;
 }
 
-ebench ebench_addStep(ebench b, constr name, ebench_cb oprt)
+ebench ebench_addStep(ebench b, constr name, ebench_cb oprt, eval prvt)
 {
     _CHECK_NULL(b); _CHECK_NULL(name); _CHECK_NULL(oprt);
 
@@ -472,6 +495,7 @@ ebench ebench_addStep(ebench b, constr name, ebench_cb oprt)
 
         estr_wrtS(_oprt->name, name);
         _oprt->oprt    = oprt;
+        _oprt->prvt    = prvt;
         _oprt->is_step = 1;
     }
     else
@@ -483,13 +507,16 @@ ebench ebench_addStep(ebench b, constr name, ebench_cb oprt)
     return b;
 }
 
-ebench ebench_addCase (ebench b, uint oprts)
+ebench ebench_addCase (ebench b, uint oprts, eval prvt)
 {
     _CHECK_NULL(b); _CHECK_NULL(oprts);
 
     __ebench_p bench = (__ebench_p)(b);
 
-    ejson_addI(bench->_cases, ullstr(oprts), oprts);
+    __ebench_case_t* c = (void*)ejson_addR(bench->_cases, ullstr(oprts), sizeof(*c));
+
+    c->oprts = oprts;
+    c->cprvt = prvt;
 
     return b;
 }
@@ -506,6 +533,16 @@ void ebench_exec()
     __ebench_man_exec_cases();
     __ebench_man_cal_results();
     __ebench_man_format_result();
+}
+
+
+void   ebench_skipCase(uint oprts1, uint oprts2)
+{
+    if(oprts1 <= oprts2)
+    {
+        __skip_low  = oprts1;
+        __skip_high = oprts2;
+    }
 }
 
 void   ebench_showResult()

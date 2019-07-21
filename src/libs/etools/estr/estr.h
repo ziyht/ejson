@@ -7,7 +7,7 @@
 ///                     estr - for heap using
 ///                     sstr - for stack using
 ///
-///        Version:  1.2
+///        Version:  1.3
 ///        Created:  02/25/2017 08:51:34 PM
 ///       Revision:  none
 ///       Compiler:  gcc
@@ -76,88 +76,88 @@ void estr_free(estr s);
 
 /// -- estr writer --------------------------------------
 ///
-/// estr_wrt*: write from the beginning
-/// estr_cat*: write continued
-///
-///     for convenience, if s is 0, we will create a new estr automaticly
+///   for convenience, if s is 0, we will create a new estr
+/// automaticly
 ///
 /// note:
-///     be careful when using those macros, it pass in the addr of estr automaticlly, the
-///  addr of this estr maybe changed after operation, so the estr must not be a passed in
-///  estr from another func
+///     be careful when using those macros, it pass in the
+/// addr of estr automaticlly, the addr of this estr maybe
+/// changed after operation, so the estr must not be a
+/// passed in estr from another func
 ///
 
+//! estr_wrt*: write from the beginning
 #define estr_wrtE(s, s2)        __estr_wrtE(&(s), (s2))             // estr
 #define estr_wrtS(s, cstr)      __estr_wrtS(&(s), (cstr))           // cstr
-#define estr_wrtW(s, word)      __estr_wrtW(&(s), (word))           // word, not include next space
+#define estr_wrtW(s, word)      __estr_wrtW(&(s), (word))           // word, continues alpha
 #define estr_wrtL(s, line)      __estr_wrtL(&(s), (line))           // line, not include '\n'
 #define estr_wrtT(s, src, end)  __estr_wrtT(&(s), (src), end)       // to  , not include end char
 #define estr_wrtB(s, ptr, len)  __estr_wrtB(&(s), (ptr), (len))     // bin
-#define estr_wrtC(s, c  , len)  __estr_wrtC(&(s), (c  ), (len))     // char
-#define estr_wrtA(s, fmt, ap)   __estr_wrtA(&(s), fmt, ap)          // args
+#define estr_wrtC(s, c  , cnt)  __estr_wrtC(&(s), (c  ), (cnt))     // char int cnt
+#define estr_wrtA(s, fmt, ap)   __estr_wrtA(&(s), fmt, ap)          // vargs : like vsprintf
 #define estr_wrtP(s, ...)       __estr_wrtP(&(s), ##__VA_ARGS__)    // format: like sprintf
 #define estr_wrtF(s, ...)       __estr_wrtF(&(s), ##__VA_ARGS__)    // format: only support %s(cstr) %S(estr) %i(i32) %I(i64) %u(u32) %U(u64) %%(%)
 
-#define estr_catE(s, s2)        __estr_catE(&(s), (s2))
-#define estr_catS(s, cstr)      __estr_catS(&(s), (cstr))
-#define estr_catW(s, word)      __estr_catW(&(s), (word))
-#define estr_catL(s, line)      __estr_catL(&(s), (line))
-#define estr_catT(s, src, end)  __estr_catT(&(s), (src), end)
-#define estr_catB(s, ptr, len)  __estr_catB(&(s), (ptr), (len))
-#define estr_catC(s, c  , len)  __estr_catC(&(s), (c  ), (len))     // char
-#define estr_catA(s, fmt, ap)   __estr_catA(&(s), fmt, ap)
-#define estr_catP(s, ...)       __estr_catP(&(s), ##__VA_ARGS__)
-#define estr_catF(s, ...)       __estr_catF(&(s), ##__VA_ARGS__)
+//! estr_cat*: write continued
+#define estr_catE(s, s2)        __estr_catE(&(s), (s2))             // estr
+#define estr_catS(s, cstr)      __estr_catS(&(s), (cstr))           // cstr
+#define estr_catW(s, word)      __estr_catW(&(s), (word))           // word? continues alpha
+#define estr_catL(s, line)      __estr_catL(&(s), (line))           // line, not include '\n'
+#define estr_catT(s, src, end)  __estr_catT(&(s), (src), end)       // to  , not include end char
+#define estr_catB(s, ptr, len)  __estr_catB(&(s), (ptr), (len))     // bin
+#define estr_catC(s, c  , cnt)  __estr_catC(&(s), (c  ), (cnt))     // char
+#define estr_catA(s, fmt, ap)   __estr_catA(&(s), fmt, ap)          // vargs : like vsprintf
+#define estr_catP(s, ...)       __estr_catP(&(s), ##__VA_ARGS__)    // format: like sprintf
+#define estr_catF(s, ...)       __estr_catF(&(s), ##__VA_ARGS__)    // format: only support %s(cstr) %S(estr) %i(i32) %I(i64) %u(u32) %U(u64) %%(%)
 
-estr estr_setB(estr s, int  start, conptr ptr, size len);   // todo
-int  estr_setT(estr s, char c);                  // set the last char of s, if c == '\0', the len of s will decrease 1 automaticlly
-
+estr    estr_setB(estr s, int  start, conptr in, size len);         // todo
+int     estr_setT(estr s, char c);                                  // set the last char of s, if c == '\0', the len of s will decrease 1 automaticlly
 
 
 /// -- estr getter ---------------------------------------
-size estr_len (estr s);
-size estr_cap (estr s);
-size estr_rest(estr s);
-char estr_tail(estr s);
+size    estr_len (estr s);
+size    estr_cap (estr s);
+size    estr_rest(estr s);
+char    estr_tail(estr s);
 
 /// -- estr utils ---------------------------------------
-void estr_show(estr s);
+void    estr_show(estr s);
 
-int  estr_cmp (estr s, estr   s2 );
-int  estr_cmpS(estr s, constr src);
+int     estr_cmp (estr s, estr   s2 );
+int     estr_cmpS(estr s, constr src);
 
-i64  estr_lower(estr s);
-i64  estr_upper(estr s);
-estr estr_range(estr s, i64    start, i64 end);
-i64  estr_trim (estr s, constr cset);
-i64  estr_mapc (estr s, constr from, constr to);
-i64  estr_mapcl(estr s, constr from, constr to, size_t len);
-i64  estr_subc (estr s, constr cset, constr to);
+i64     estr_lower(estr s);
+i64     estr_upper(estr s);
+estr    estr_range(estr s, i64    start, i64 end);
+i64     estr_trim (estr s, constr cset);
+i64     estr_mapc (estr s, constr from, constr to);
+i64     estr_mapcl(estr s, constr from, constr to, size_t len);
+i64     estr_subc (estr s, constr cset, constr to);
 
 #define estr_subs(s, from, to) __estr_subs(&(s), from, to)
 
-void estr_cntc (estr s, u8 cnts[256], char end);  // you can also cnt cstr derectly
+void    estr_cntc (estr s, u8 cnts[256], char end);  // you can also cnt cstr derectly
 
-cstr estr_tok  (estr s, char delim);
+cstr    estr_tok  (estr s, char delim);
 
 /// -- Low level functions exposed to the user API ------  << be careful >>
-#define estr_ensure(s, len) __estr_ensure(&(s), len)
+#define estr_ensure(      s,         len)   __estr_ensure(&(s), len)
 void    estr_incrLen(estr s, size_t incr);
 void    estr_decrLen(estr s, size_t decr);
-estr    estr_shrink (estr s);
+void    estr_shrink (estr s);
 
 /// -- split tools -------------------------------------
 
 typedef cstr* esplt;
 
-esplt esplt_new (int need, bool keep, bool trim);
-void  esplt_set (esplt sp, bool keep, bool trim);
-void  esplt_free(esplt sp);
+esplt   esplt_new (int need, bool keep, bool trim);
+void    esplt_set (esplt sp, bool keep, bool trim);
+void    esplt_free(esplt sp);
 
-void  esplt_show(esplt sp, int max);
+void    esplt_show(esplt sp, int max);
 
-int   esplt_cnt   (esplt sp);
-int   esplt_unique(esplt sp);
+int     esplt_cnt   (esplt sp);
+int     esplt_unique(esplt sp);
 
 #define esplt_splitE(sp, s, sep)                __esplt_splitE(&(sp), s, sep)
 #define esplt_splitS(sp, s, sep)                __esplt_splitS(&(sp), s, sep)
@@ -195,57 +195,60 @@ typedef char* sstr;
 #define SSTR_DEST(n, l) char #n[9u+l]
 
 /// -- sstr initializer ---------------------------------
-sstr sstr_init(cptr buf, uint len);
+sstr    sstr_init(cptr buf, uint len);
 
 /// -- sstr writer --------------------------------------
-i64  sstr_wrtE(sstr s, sstr   s2 );                         // estr
-i64  sstr_wrtS(sstr s, constr src);                         // cstr
-i64  sstr_wrtW(sstr s, constr word);                        // word, not include next space
-i64  sstr_wrtL(sstr s, constr line);                        // line, not include '\n'
-i64  sstr_wrtT(sstr s, constr src, char    end);            // to  , not include end char
-i64  sstr_wrtB(sstr s, conptr ptr, size    len);            // bin
-i64  sstr_wrtA(sstr s, constr fmt, va_list ap );            // args
-i64  sstr_wrtP(sstr s, constr fmt, ...) __format_printf;    // format: like sprintf
-i64  sstr_wrtF(sstr s, constr fmt, ...);                    // format: only support %s(cstr) %S(estr) %i(i32) %I(i64) %u(u32) %U(u64) %%(%)
+i64     sstr_wrtE(sstr s, sstr   s2 );                          // estr
+i64     sstr_wrtS(sstr s, constr src);                          // cstr
+i64     sstr_wrtW(sstr s, constr word);                         // word, continues alpha
+i64     sstr_wrtL(sstr s, constr line);                         // line, not include '\n'
+i64     sstr_wrtT(sstr s, constr src, char    end);             // to  , not include end char
+i64     sstr_wrtB(sstr s, conptr ptr, size    len);             // bin
+i64     sstr_wrtC(sstr s, char   c  , size    cnt);             // char in cnt
+i64     sstr_wrtA(sstr s, constr fmt, va_list ap );             // vargs : like vsprintf
+i64     sstr_wrtP(sstr s, constr fmt, ...) __format_printf;     // format: like sprintf
+i64     sstr_wrtF(sstr s, constr fmt, ...);                     // format: only support %s(cstr) %S(estr) %i(i32) %I(i64) %u(u32) %U(u64) %%(%)
 
-i64  sstr_catE(sstr s, sstr   s2 );
-i64  sstr_catS(sstr s, constr src);
-i64  sstr_catW(sstr s, constr src);
-i64  sstr_catL(sstr s, constr src);
-i64  sstr_catB(sstr s, conptr ptr, size   len);
-i64  sstr_catA(sstr s, constr fmt, va_list ap );
-i64  sstr_catP(sstr s, constr fmt, ...) __format_printf;
-i64  sstr_catF(sstr s, constr fmt, ...);
+i64     sstr_catE(sstr s, sstr   s2 );                          // estr
+i64     sstr_catS(sstr s, constr src);                          // cstr
+i64     sstr_catW(sstr s, constr src);                          // word, continues alpha
+i64     sstr_catL(sstr s, constr src);                          // line, not include '\n'
+i64     sstr_catT(sstr s, constr src, char    end);             // to  , not include end char
+i64     sstr_catB(sstr s, conptr ptr, size    len);             // bin
+i64     sstr_catC(sstr s, char   c  , size    cnt);             // char in cnt
+i64     sstr_catA(sstr s, constr fmt, va_list ap );             // vargs : like vsprintf
+i64     sstr_catP(sstr s, constr fmt, ...) __format_printf;     // format: like sprintf
+i64     sstr_catF(sstr s, constr fmt, ...);                     // format: only support %s(cstr) %S(estr) %i(i32) %I(i64) %u(u32) %U(u64) %%(%)
 
-#define sstr_clear estr_clear
-#define sstr_wipe  estr_wipe
+#define sstr_clear  estr_clear
+#define sstr_wipe   estr_wipe
 
 /// -- sstr getter --------------------------------------
-#define sstr_len  estr_len
-#define sstr_cap  estr_cap
-#define sstr_rest estr_rest
-#define sstr_tail estr_tail
+#define sstr_len    estr_len
+#define sstr_cap    estr_cap
+#define sstr_rest   estr_rest
+#define sstr_tail   estr_tail
 
 /// -- estr utils ------------------------------------
-void sstr_show(sstr s);
+#define sstr_show   estr_show
 
-#define sstr_cmp   estr_cmp
-#define sstr_cmpS  estr_cmpS
+#define sstr_cmp    estr_cmp
+#define sstr_cmpS   estr_cmpS
 
-#define sstr_lower estr_lower
-#define sstr_upper estr_upper
+#define sstr_lower  estr_lower
+#define sstr_upper  estr_upper
 
-#define sstr_range estr_range
-#define sstr_trim  estr_trim
-#define sstr_mapc  estr_mapc
-#define sstr_mapcl estr_mapcl
-#define sstr_subc  estr_subc
-#define sstr_upper estr_upper
+#define sstr_range  estr_range
+#define sstr_trim   estr_trim
+#define sstr_mapc   estr_mapc
+#define sstr_mapcl  estr_mapcl
+#define sstr_subc   estr_subc
+#define sstr_upper  estr_upper
 
-sstr sstr_subs (sstr s, constr from, constr to);
+#define sstr_subs   estr_subs
 
 /// -- Low level functions exposed to the user API ------
-void sstr_decrLen(sstr s, size_t decr);
+void    sstr_decrLen(sstr s, size_t decr);
 
 
 /// -- estr real declarition ----------------------------
@@ -259,7 +262,7 @@ i64 __estr_wrtT(estr*s, constr src, char    end);
 i64 __estr_wrtB(estr*s, conptr ptr, size    len);
 i64 __estr_wrtC(estr*s, char   c  , size    len);
 i64 __estr_wrtA(estr*s, constr fmt, va_list ap);
-i64 __estr_wrtP(estr*s, constr fmt, ...);
+i64 __estr_wrtP(estr*s, constr fmt, ...) __format_printf;
 i64 __estr_wrtF(estr*s, constr fmt, ...);
 
 i64 __estr_catE(estr*s, estr   s2 );

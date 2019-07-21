@@ -1,6 +1,6 @@
 #include <string.h>
 
-#include "test_main.h"
+#include "estr.h"
 #include "etest.h"
 
 int estr_split_str_test()

@@ -7,7 +7,7 @@
 ///                     estr - for heap using
 ///                     sstr - for stack using
 ///
-///        Version:  1.2
+///        Version:  1.3
 ///        Created:  02/25/2017 08:51:34 PM
 ///       Revision:  none
 ///       Compiler:  gcc
@@ -36,13 +36,33 @@
 #include "eutils.h"
 #include "ecompat.h"
 
+#define   STB_SPRINTF_USING_STRCHR                      // strchr is very fast now
+#define   STB_SPRINTF_USING_MEMCPY                      // memcpy is very fast now
+#define   STB_SPRINTF_COPY_STR_PROMOTION                // memcpy is ok
+#define   STB_SPRINTF_MIN              ((int*)user)[0]  //
+#define   STB_SPRINTF_DECORATE(name)   __estr_##name    // defined it will not conflict with other using
+#include "stb_sprintf.h"
+
 #include "estr.h"
 #include "estr_p.h"
 
-#define ESTR_VERSION "estr 1.2.10"       // do not free the src estr when alloc failed in __estr_replace_str, returned -2
+#define ESTR_VERSION "estr 1.3.0"       // import stb_sprintf.c
 
 /// -- helper ------------------------------
 
+#define _ERR_HANDLE   -1
+#define _ERR_ALLOC    -2
+
+#undef  strlen
+#define strlen(s) ((uint)(strchr(s, '\0') - s))       // this operation is more efficient in windows
+
+#define __get_word_s_e(w, e)                \
+do {                                        \
+    if   ( !w         ) return 0;           \
+    while( isspace(*w)) w++;                \
+    if   (!isalpha(*w)) return 0; e = w;    \
+    while( isalpha(*e)) e++;                \
+}while(0)
 
 static inline void _show(constr tag, estr s)
 {
@@ -50,7 +70,7 @@ static inline void _show(constr tag, estr s)
 
     if(!s)
     {
-        printf("(%s: nullptr)", tag);fflush(stdout);
+        printf("(%s: nullptr)\n", tag);fflush(stdout);
         return;
     }
 
@@ -71,7 +91,7 @@ static inline void _show(constr tag, estr s)
 #if (!_WIN32)
     write(STDOUT_FILENO, s, len);
 #else
-    fwrite(s, len, 1, stdout); fflush(stdout);
+    fwrite(s, len, 1, stdout);
 #endif
 
     printf("]\n");
@@ -241,7 +261,9 @@ inline void estr_free(estr   s) { if(s){ _s_free(s); } }
 
 /// -- estr writer --------------------------------------
 
-#define _ERR_LEN -1l
+static __always_inline i64 __estr_wrtA_P(estr*s, constr fmt, va_list ap);
+static __always_inline i64 __estr_catA_F(estr*s, constr fmt, va_list ap);
+static __always_inline i64 __estr_catA_P(estr*s, constr fmt, va_list ap);
 
 i64  __estr_wrtB(estr*_s, conptr ptr, size len)
 {
@@ -249,13 +271,13 @@ i64  __estr_wrtB(estr*_s, conptr ptr, size len)
 
     if(0 == s)
     {
-        is0_ret(s = _s_new(len), _ERR_LEN);
+        is0_ret(s = _s_new(len), _ERR_ALLOC);
     }
     else if(_s_cap(s) < len)
     {
         size_t need = len - _s_len(s);
         _s_ensure(s, need);
-        is0_ret(s, _ERR_LEN);
+        is0_ret(s, _ERR_ALLOC);
     }
 
     memcpy(s, ptr, len);
@@ -266,19 +288,20 @@ i64  __estr_wrtB(estr*_s, conptr ptr, size len)
 
     return len;
 }
+
 i64 __estr_wrtC(estr*_s, char   c  , size    len)
 {
     estr s = *_s;
 
     if(0 == s)
     {
-        is0_ret(s = _s_new(len), _ERR_LEN);
+        is0_ret(s = _s_new(len), _ERR_ALLOC);
     }
     else if(_s_cap(s) < len)
     {
         size need = len - _s_len(s);
         _s_ensure(s, need);
-        is0_ret(s, _ERR_LEN);
+        is0_ret(s, _ERR_ALLOC);
     }
 
     memset(s, c, len);
@@ -290,188 +313,15 @@ i64 __estr_wrtC(estr*_s, char   c  , size    len)
     return len;
 }
 
-inline i64 __estr_wrtE(estr*s, estr   s2 ) { return s2  ? __estr_wrtB(s, s2 , _s_len(s2 )) : _ERR_LEN; }
-inline i64 __estr_wrtS(estr*s, constr src) { return src ? __estr_wrtB(s, src, strlen(src)) : _ERR_LEN; }
+i64 __estr_wrtE(estr*s, estr   s2  ) { return s2  ? __estr_wrtB(s, s2 , _s_len(s2 )) : 0; }
+i64 __estr_wrtS(estr*s, constr src ) { return src ? __estr_wrtB(s, src, strlen(src)) : 0; }
+i64 __estr_wrtW(estr*s, constr w   ) { constr e;  __get_word_s_e(w, e); return __estr_wrtB(s, w, e - w); }
+i64 __estr_wrtL(estr*s, constr line) { return line ? __estr_wrtB(s, line, strchrnul(line, '\n') - line) : 0; }
 
-inline i64 __estr_wrtW(estr*s, constr word)
-{
-    constr b, e;
-
-    is0_ret(word, 0);
-
-    b = word;
-
-    while(*b &&  isspace(*b)) b++; e = b;
-    while(*e && !isspace(*e)) e++;
-
-    return __estr_wrtB(s, b, e - b);
-}
-
-inline i64 __estr_wrtL(estr*s, constr line)
-{
-    is0_ret(line, 0);
-
-    return __estr_wrtB(s, line, strchrnul(line, '\n') - line);
-}
-
-inline i64 __estr_wrtT(estr*s, constr src, char end)
-{
-    is0_ret(src, 0);
-
-    return __estr_wrtB(s, src, strchrnul(src, end) - src);
-}
-
-inline i64 __estr_wrtA(estr*s, constr fmt, va_list ap)
-{
-    va_list cpy; size_t wr_len;
-    char staticbuf[1024], *buf = staticbuf;
-
-    size_t buflen = strlen(fmt)*2;
-
-    /* We try to start using a static buffer for speed.
-     * If not possible we revert to heap allocation. */
-    if (buflen > sizeof(staticbuf)) {
-        buf = emalloc(buflen);
-        if (buf == NULL) return _ERR_LEN;
-    } else {
-        buflen = sizeof(staticbuf);
-    }
-
-    /* Try with buffers two times bigger every time we fail to
-     * fit the string in the current buffer size. */
-    while(1) {
-        buf[buflen-2] = '\0';
-        va_copy(cpy,ap);
-        wr_len = vsnprintf(buf, buflen, fmt, cpy);
-        va_end(cpy);
-        if (buf[buflen-2] != '\0') {
-            if (buf != staticbuf) efree(buf);
-            buflen *= 2;
-            buf = emalloc(buflen);
-            if (buf == NULL) return _ERR_LEN;
-            continue;
-        }
-        break;
-    }
-
-    /* Finally concat the obtained string to the SDS string and return it. */
-    wr_len = wr_len > 0 ? __estr_wrtB(s, buf, wr_len) : __estr_wrtS(s, buf);
-    if (buf != staticbuf) efree(buf);
-    return wr_len;
-}
-
-inline i64 __estr_wrtP(estr*s, constr fmt, ...)
-{
-    va_list ap; i64 len;
-
-    va_start(ap, fmt);
-    len = __estr_wrtA(s, fmt, ap);
-    va_end(ap);
-
-    return len;
-}
-
-#define _s_catbin(s, in, l) { _s_ensure(s, l); memcpy(s + _s_len(s), in, l); _s_incLen(s, l);}
-
-/* This function is similar to sdscatprintf, but much faster as it does
- * not rely on sprintf() family functions implemented by the libc that
- * are often very slow. Moreover directly handling the sds string as
- * new data is concatenated provides a performance improvement.
- *
- * However this function only handles an incompatible subset of printf-alike
- * format specifiers:
- *
- * %s - C String
- * %S - estr
- * %i - signed int
- * %I - 64 bit signed integer (long long, int64_t)
- * %u - unsigned int
- * %U - 64 bit unsigned integer (unsigned long long, uint64_t)
- * %% - Verbatim "%" character.
- */
-i64 __estr_wrtF(estr*_s, constr fmt, ...)     // todo : using ptr, not using index i
-{
-    constr f; size_t i; va_list ap; char next, *str; size_t l; i64 num; u64 unum;
-
-    estr s = *_s;
-
-    is0_exe(s, is0_ret(s = _s_new(strlen(fmt) * 2), _ERR_LEN));
-
-    _s_setLen(s, 0);
-    va_start(ap,fmt);
-    f = fmt;     /* Next format specifier byte to process. */
-    i = 0;       /* Position of the next byte to write to dest str. */
-
-    while(*f)
-    {
-        /* Make sure there is always space for at least 1 char. */
-        _s_ensure(s, 1);
-
-        switch(*f)
-        {
-            case '%': next = *(f + 1);
-                      f++;
-                      switch(next)
-                      {
-                          case 's':
-                          case 'S': str = va_arg(ap, char*);
-                                    l = (next == 's') ? strlen(str) : _s_len(str);
-
-                                    _s_ensure(s, l);
-                                    memcpy(s + i, str, l);
-                                    _s_incLen(s, l);
-                                    i += l;
-                                    break;
-                        case 'i':
-                        case 'I': num = (next == 'i') ? va_arg(ap,int)
-                                                      : va_arg(ap,long long);
-                                  {
-                                      char buf[SDS_LLSTR_SIZE];
-                                      l = ll2str(num, buf);
-                                      _s_ensure(s, l);
-                                      memcpy(s+i ,buf, l);
-                                      _s_incLen(s,l);
-                                      i += l;
-                                  }
-                                  break;
-                        case 'u':
-                        case 'U': unum =  (next == 'u') ? va_arg(ap,unsigned int)
-                                                        : va_arg(ap,unsigned long long);
-
-                                  {
-                                      char buf[SDS_LLSTR_SIZE];
-                                      l = ull2str(unum, buf);
-
-                                      _s_ensure(s,l);
-                                      memcpy(s+i, buf, l);
-                                      _s_incLen(s,l);
-                                      i += l;
-                                  }
-                                  break;
-
-                        default : s[i++] = next;      /* Handle %% and generally %<unknown>. */
-                                  _s_incLen(s, 1);
-                                  break;
-                }
-
-                      break;
-            default : s[i++] = *f;
-                      _s_incLen(s, 1);
-                      break;
-            }
-
-        f++;
-    }
-    va_end(ap);
-
-    /* Add null-term */
-    s[i] = '\0';
-
-    *_s = s;
-
-    return _s_len(s);
-}
-
+i64 __estr_wrtT(estr*s, constr src, char end  ) { return src ? __estr_wrtB(s, src, strchrnul(src, end) - src) : 0; }
+i64 __estr_wrtA(estr*s, constr fmt, va_list ap) {                                                         return __estr_wrtA_P(s, fmt, ap); }
+i64 __estr_wrtP(estr*s, constr fmt, ...       ) { va_list ap;                          va_start(ap, fmt); return __estr_wrtA_P(s, fmt, ap); }
+i64 __estr_wrtF(estr*s, constr fmt, ...       ) { va_list ap; if(*s) _s_setLen(*s, 0); va_start(ap, fmt); return __estr_catA_F(s, fmt, ap); }
 
 inline i64 __estr_catB(estr*_s, conptr ptr, size len)
 {
@@ -479,7 +329,7 @@ inline i64 __estr_catB(estr*_s, conptr ptr, size len)
 
     if(0 == s)
     {
-        is0_ret(s = _s_new(len), _ERR_LEN);
+        is0_ret(s = _s_new(len), _ERR_ALLOC);
         memcpy(s, ptr, len);
         _s_setLen(s, len);
     }
@@ -488,7 +338,7 @@ inline i64 __estr_catB(estr*_s, conptr ptr, size len)
         size_t curlen;
 
         curlen = _s_len(s); _s_ensure(s, len);
-        is0_exeret(s, *_s = 0, _ERR_LEN);
+        is0_exeret(s, *_s = 0, _ERR_ALLOC);
 
         memcpy(s+curlen, ptr, len); curlen += len;
         _s_setLen(s, curlen);
@@ -506,7 +356,7 @@ i64 __estr_catC(estr*_s, char   c  , size    len)
 
     if(0 == s)
     {
-        is0_ret(s = _s_new(len), _ERR_LEN);
+        is0_ret(s = _s_new(len), _ERR_ALLOC);
         memset(s, c, len);
         _s_setLen(s, len);
     }
@@ -516,7 +366,7 @@ i64 __estr_catC(estr*_s, char   c  , size    len)
 
         curlen = _s_len(s);
         _s_ensure(s, len);
-        is0_exeret(s, *_s = 0, _ERR_LEN);
+        is0_exeret(s, *_s = 0, _ERR_ALLOC);
 
         memset(s+curlen, c, len); curlen += len;
         _s_setLen(s, curlen);
@@ -528,85 +378,67 @@ i64 __estr_catC(estr*_s, char   c  , size    len)
     return len;
 }
 
-inline i64 __estr_catE(estr*s, estr   s2 ) { return s2  ? __estr_catB(s, s2 , _s_len( s2)) : _ERR_LEN; }
-inline i64 __estr_catS(estr*s, constr src) { return src ? __estr_catB(s, src, strlen(src)) : _ERR_LEN; }
+i64 __estr_catE(estr*s, estr   s2 ) { return s2  ? __estr_catB(s, s2 , _s_len( s2)) : 0; }
+i64 __estr_catS(estr*s, constr src) { return src ? __estr_catB(s, src, strlen(src)) : 0; }
+i64 __estr_catW(estr*s, constr w  ) { constr e; __get_word_s_e(w, e); return __estr_catB(s, w, e - w); }
 
-inline i64 __estr_catW(estr*s, constr word)
+i64 __estr_catL(estr*s, constr line           ) { return line ? __estr_catB(s, line, strchrnul(line, '\n') - line) : 0; }
+i64 __estr_catT(estr*s, constr src, char   end) { return src  ? __estr_catB(s, src , strchrnul(src , end ) - src ) : 0; }
+i64 __estr_catA(estr*s, constr fmt, va_list ap) {                                return __estr_catA_P(s, fmt, ap); }
+i64 __estr_catP(estr*s, constr fmt, ...       ) { va_list ap; va_start(ap, fmt); return __estr_catA_P(s, fmt, ap); }
+i64 __estr_catF(estr*s, constr fmt, ...       ) { va_list ap; va_start(ap, fmt); return __estr_catA_F(s, fmt, ap); }
+
+typedef struct estr__context {
+    int  avail;      // set in the first place so we can get it directly
+    estr s;          // handle for compat estr
+    cstr buf;
+}estr__context;
+
+static char* __estr__clamp_callback(char *buf, void *user, int len)
 {
-    constr b, e;
+    estr__context *c = (estr__context *)user;
 
-    is0_ret(word, 0);
+    _s_incLen(c->s, len);
+    _s_ensure(c->s, 16);
 
-    b = word;
+    c->avail = (int)_s_avail(c->s);
 
-    while(*b &&  isspace(*b)) b++; e = b;
-    while(*e && !isspace(*e)) e++;
-
-    return __estr_catB(s, b, e - b);
+    return c->s + _s_len(c->s); // go direct into buffer if you can
 }
 
-inline i64 __estr_catL(estr*s, constr line)
+static __always_inline i64 __estr_wrtA_P(estr*s, constr fmt, va_list ap)
 {
-    is0_ret(line, 0);
+    estr__context c;
+    i64 l;
 
-    return __estr_catB(s, line, strchrnul(line, '\n') - line);
+    if((c.s = *s)) _s_setLen(c.s, 0);
+    else           c.s = _s_new(8);
+
+    c.avail = (int)_s_cap(c.s);
+    c.buf   = c.s;
+
+    l =  __estr_vsprintfcb( __estr__clamp_callback, &c, c.buf, fmt, ap );
+
+    *s = c.s;
+
+    return l;
 }
 
-inline i64 __estr_catT(estr*s, constr src, char end)
+static __always_inline i64 __estr_catA_P(estr*s, constr fmt, va_list ap)
 {
-    is0_ret(src, 0);
+    estr__context c;
+    i64 l;
 
-    return __estr_catB(s, src, strchrnul(src, end) - src);
-}
+    if((c.s = *s)) c.buf = c.s + _s_len(c.s);
+    else           c.buf = c.s = _s_new(8);
 
-inline i64 __estr_catA(estr*s, constr fmt, va_list ap)
-{
-    va_list cpy; size_t wr_len;
-    char staticbuf[1024], *buf = staticbuf;
+    c.avail = (int)_s_avail(c.s);
 
-    size_t buflen = strlen(fmt)*2;
+    l =  __estr_vsprintfcb( __estr__clamp_callback, &c, c.buf, fmt, ap );
 
-    /* We try to start using a static buffer for speed.
-     * If not possible we revert to heap allocation. */
-    if (buflen > sizeof(staticbuf)) {
-        buf = emalloc(buflen);
-        is0_ret(buf, _ERR_LEN);
-    } else {
-        buflen = sizeof(staticbuf);
-    }
+    *s = c.s;
 
-    /* Try with buffers two times bigger every time we fail to
-     * fit the string in the current buffer size. */
-    while(1) {
-        buf[buflen-2] = '\0';
-        va_copy(cpy,ap);
-        wr_len = vsnprintf(buf, buflen, fmt, cpy);
-        va_end(cpy);
-        if (buf[buflen-2] != '\0') {
-            if (buf != staticbuf) efree(buf);
-            buflen *= 2;
-            buf = emalloc(buflen);
-            is0_ret(buf, _ERR_LEN);
-            continue;
-        }
-        break;
-    }
-
-    /* Finally concat the obtained string to the SDS string and return it. */ // todo: test wr_len
-    wr_len = wr_len > 0 ? __estr_catB(s, buf, wr_len) : __estr_catS(s, buf);
-    if (buf != staticbuf) efree(buf);
-    return wr_len;
-}
-
-inline i64 __estr_catP(estr*s, constr fmt, ...)
-{
-    va_list ap; i64 len;
-
-    va_start(ap, fmt);
-    len = __estr_catA(s, fmt, ap);
-    va_end(ap);
-
-    return len;
+    return l;
 }
 
 /* This function is similar to sdscatprintf, but much faster as it does
@@ -625,87 +457,77 @@ inline i64 __estr_catP(estr*s, constr fmt, ...)
  * %U - 64 bit unsigned integer (unsigned long long, uint64_t)
  * %% - Verbatim "%" character.
  */
-i64 __estr_catF(estr*_s, constr fmt, ...)
+static __always_inline i64 __estr_catA_F(estr*_s, constr fmt, va_list ap)
 {
-    constr f; size_t i, his_len; va_list ap; estr s = *_s;
+    constr f; size_t i, his_len, l; char next, *str; eval num; char buf[SDS_LLSTR_SIZE];
 
-    is0_exe(s, is0_ret(s = _s_new(strlen(fmt) * 2), _ERR_LEN));
+    estr s = *_s;
 
-    his_len = _s_len(s);
+    is0_exe(s, is0_ret(s = _s_new((uint)(strlen(fmt) * 1.2f)), _ERR_ALLOC));
 
-    va_start(ap, fmt);
-    f = fmt;            /* Next format specifier byte to process. */
-    i = _s_len(s);  /* Position of the next byte to write to dest str. */
-    while(*f) {
-        char next, *str;
-        size_t l;
-        long long num;
-        unsigned long long unum;
+    f = fmt;                    /* Next format specifier byte to process. */
+    i = his_len = _s_len(s);    /* Position of the next byte to write to dest str. */
 
+    while(*f)
+    {
         /* Make sure there is always space for at least 1 char. */
         _s_ensure(s, 1);
 
-        switch(*f) {
-        case '%':
-            next = *(f+1);
-            f++;
-            switch(next) {
-            case 's':
-            case 'S':
-                str = va_arg(ap, char*);
-                l = (next == 's') ? strlen(str) : _s_len(str);
-                _s_ensure(s, l);
+        switch(*f)
+        {
+            case '%': next = *(f + 1);
+                      f++;
 
-                memcpy(s + i, str, l);
-                _s_incLen(s, l);
-                i += l;
-                break;
-            case 'i':
-            case 'I':
-                if (next == 'i')
-                    num = va_arg(ap,int);
-                else
-                    num = va_arg(ap,long long);
-                    {
-                        char buf[SDS_LLSTR_SIZE];
-                        l = ll2str(num, buf);
-                        _s_ensure(s, l);
+                      switch(next)
+                      {
+                          case 's':
+                          case 'S': str = va_arg(ap, char*);
 
-                        memcpy(s+i,buf,l);
-                        _s_incLen(s,l);
-                        i += l;
-                    }
-                break;
-            case 'u':
-            case 'U':
-                if (next == 'u')
-                    unum = va_arg(ap,unsigned int);
-                else
-                    unum = va_arg(ap,unsigned long long);
-                    {
-                        char buf[SDS_LLSTR_SIZE];
-                        l = ull2str(unum, buf);
+                                    if(!str) { str = "(null)"; l= 6;}
+                                    else
+                                        l = (next == 's') ? strlen(str) : _s_len(str);
 
-                        _s_ensure(s, l);
-                        memcpy(s+i, buf, l);
-                        _s_incLen(s,l);
-                        i += l;
-                    }
-                break;
-            default: /* Handle %% and generally %<unknown>. */
-                s[i++] = next;
-                _s_incLen(s,1);
-                break;
-            }
-            break;
-        default:
-            s[i++] = *f;
-            _s_incLen(s, 1);
-            break;
+                                    _s_ensure(s, l);
+                                    memcpy(s + i, str, l);
+                                    _s_incLen(s, l);
+                                    i += l;
+                                    break;
+                          case 'i':
+                          case 'I': num.i = (next == 'i') ? va_arg(ap,int)
+                                                          : va_arg(ap,long long);
+
+                                    l = ll2str(num.i, buf);
+                                    _s_ensure(s, l);
+                                    memcpy(s+i ,buf, l);
+                                    _s_incLen(s,l);
+                                    i += l;
+
+                                    break;
+                          case 'u':
+                          case 'U': num.u =  (next == 'u') ? va_arg(ap,unsigned int)
+                                                          : va_arg(ap,unsigned long long);
+
+                                    l = ull2str(num.u, buf);
+                                    _s_ensure(s,l);
+                                    memcpy(s+i, buf, l);
+                                    _s_incLen(s,l);
+                                    i += l;
+
+                                    break;
+
+                          default : s[i++] = next;      /* Handle %% and generally %<unknown>. */
+                                    _s_incLen(s, 1);
+                                    break;
+                      }
+                      break;
+
+            default: s[i++] = *f;
+                     _s_incLen(s, 1);
+                     break;
         }
+
         f++;
     }
-    va_end(ap);
 
     /* Add null-term */
     s[i] = '\0';
@@ -719,7 +541,7 @@ inline int estr_setT(estr s, char    c)
 {
     size_t pos;
 
-    is0_ret(s, _ERR_LEN);
+    is0_ret(s, _ERR_HANDLE);
 
     pos = _s_len(s);
     if(pos)
@@ -735,21 +557,21 @@ inline int estr_setT(estr s, char    c)
     return 0;
 }
 
-inline void estr_clear(estr s) { if(s){ s[0] = '\0';             _s_setLen(s, 0);} }
-inline void estr_wipe (estr s) { if(s){ memset(s, 0, _s_len(s)); _s_setLen(s, 0);} }
+void estr_clear(estr s) { if(s){ s[0] = '\0';             _s_setLen(s, 0);} }
+void estr_wipe (estr s) { if(s){ memset(s, 0, _s_len(s)); _s_setLen(s, 0);} }
 
 /// =====================================================
 /// estr getter
 /// =====================================================
-inline size estr_len (estr s) { return s ? _s_len(s)        : 0; }
-inline size estr_cap (estr s) { return s ? _s_cap(s)        : 0; }
-inline size estr_rest(estr s) { return s ? _s_avail(s)      : 0; }
-inline char estr_tail(estr s) { return s ? s[_s_len(s) - 1] : 0; }
+size estr_len (estr s) { return s ? _s_len(s)        : 0; }
+size estr_cap (estr s) { return s ? _s_cap(s)        : 0; }
+size estr_rest(estr s) { return s ? _s_avail(s)      : 0; }
+char estr_tail(estr s) { return s ? s[_s_len(s) - 1] : 0; }
 
 /// =====================================================
 /// estr utils
 /// =====================================================
-inline void estr_show(estr s) { _show("estr", s); }
+void estr_show(estr s) { _show("estr", s); }
 
 int  estr_cmp (estr s, estr   s2)
 {
@@ -847,7 +669,7 @@ inline i64 estr_lower(estr s)
 {
     size_t len, i; i64 cnt = 0;
 
-    is0_ret(s, _ERR_LEN);
+    is0_ret(s, _ERR_HANDLE);
 
     len = _s_len(s);
     for (i = 0; i < len; i++)
@@ -939,35 +761,19 @@ inline estr estr_range(estr s, i64 start, i64 end)
  */
 inline i64 estr_mapc (estr s, constr from, constr to)
 {
-    size_t j, i, l, len, len2;
-
-    is0_ret(s, 0); is1_ret(!from || !to, 0);
-
-    len  = strlen(from);
-    len2 = strlen(to);
-
-    if(len > len2) len = len2;
-
-    len2 = 0;
-    l    = _s_len(s);
-
-    for (j = 0; j < l; j++) {
-        for (i = 0; i < len; i++) {
-            if (s[j] == from[i]) {
-                s[j] = to[i];
-                len2++;
-                break;
-            }
-        }
-    }
-    return len2;
+    return estr_mapcl(s, from, to, UINT32_MAX);
 }
 
 inline i64 estr_mapcl(estr s, constr from, constr to, size_t len)
 {
-    size_t j, i, l; i64 cnt;
+    size_t j, i, l, cnt;
 
-    is0_ret(s, 0);
+    is0_ret(s, 0); is1_ret(!from || !to, 0);
+
+    cnt = strlen(from); if(len > cnt) len = cnt;
+    cnt = strlen(to  ); if(len > cnt) len = cnt;
+
+    is0_ret(len, 0);
 
     cnt = 0;
     l   = _s_len(s);
@@ -981,6 +787,7 @@ inline i64 estr_mapcl(estr s, constr from, constr to, size_t len)
             }
         }
     }
+
     return cnt;
 }
 
@@ -1092,17 +899,17 @@ static void __cstr_replace_str(cstr s, cstr* end, cstr* last, constr from, size 
 /**
  * @brief __estr_replace_str
  * @return  >= 0, the replaced cnt
- *          -1  , not have enough space, only when @param enable_realloc == false may return this value
- *          -2  , alloc failed         , only when @param enable_realloc == true  may return this value
+ *          _ERR_HANDLE, not have enough space, only when @param enable_realloc == false may return this value
+ *          _ERR_ALLOC , alloc failed         , only when @param enable_realloc == true  may return this value
  *
  */
-static i64 __estr_replace_str(estr*_s, constr from, constr to, bool enable_realloc)
+static i64 __estr_replace_str(estr*_s, constr from, constr to)
 {
     i64 flen, tlen, offlen, offnow; cstr fd_s, cp_s, end_p; i64 cnt;
 
     estr s = *_s;
 
-    is0_ret(s, 0); is1_ret(!from || !to, 0);
+    is0_ret(s, _ERR_HANDLE); is1_ret(!from || !to, 0);
 
     flen   = strlen(from);
     tlen   = strlen(to);
@@ -1214,11 +1021,11 @@ static i64 __estr_replace_str(estr*_s, constr from, constr to, bool enable_reall
 
                 s[offnow] = '\0';
             }
-            else if(enable_realloc)
+            else if(!_s_isStack(s))
             {
                 cstr new_s, new_p; i64 len;
 
-                is0_ret(new_s = _s_new(offnow), -2);  // new str
+                is0_ret(new_s = _s_new(offnow), _ERR_ALLOC);  // new str
 
                 // -- to new str
                 cp_s  = fd_s = s;
@@ -1239,7 +1046,7 @@ static i64 __estr_replace_str(estr*_s, constr from, constr to, bool enable_reall
                 *_s = new_s;
             }
             else
-                return -1;
+                return _ERR_HANDLE;
         }
         else cnt = 0;
     }
@@ -1259,7 +1066,7 @@ static i64 __estr_replace_str(estr*_s, constr from, constr to, bool enable_reall
 ///
 i64 __estr_subs (estr*_s, constr from, constr to)
 {
-    return __estr_replace_str(_s, from, to, 1);
+    return __estr_replace_str(_s, from, to);
 }
 
 void estr_cntc (estr s, u8 cnts[256], char end)
@@ -1582,13 +1389,13 @@ static __always_inline i64  __esplt_estr_wrtB_(estr*_s, conptr ptr, size len)
 
     if(0 == s)
     {
-        is0_ret(s = _s_new(len), _ERR_LEN);
+        is0_ret(s = _s_new(len), _ERR_ALLOC);
     }
     else if(_s_cap(s) < len)
     {
         size_t need = len - _s_len(s);
         _s_ensure(s, need);
-        is0_ret(s, _ERR_LEN);
+        is0_ret(s, _ERR_ALLOC);
     }
 
     memmove(s, ptr, len);
@@ -1890,31 +1697,30 @@ int __s_ensure (estr*_s, size_t addlen)
 void estr_incrLen(estr s, size_t incr){if(s) _s_incrLen(s, (int)incr);}
 void estr_decrLen(estr s, size_t decr){if(s) _s_decLen (s, decr);}
 
-estr estr_shrink (estr s)
+void estr_shrink (estr s)
 {
-    void *sh, *newsh;
-    char type, oldtype = SDS_TYPE(s) & SDS_TYPE_MASK;
-    int hdrlen;
-    size_t len = _s_len(s);
-    sh = (char*)s - _s_lenH(oldtype);
+    void *sh; size_t len, expect;
+    int  hdrlen;
 
-    type   = _s_reqT(len);
-    hdrlen = _s_lenH(type);
-    if (oldtype==type) {
-        newsh = erealloc(sh, hdrlen+len+1);
-        if (newsh == NULL) return NULL;
-        s = (char*)newsh+hdrlen;
-    } else {
-        newsh = emalloc(hdrlen+len+1);
-        if (newsh == NULL) return NULL;
-        memcpy((char*)newsh+hdrlen, s, len+1);
-        efree(sh);
-        s = (char*)newsh+hdrlen;
-        SDS_TYPE(s) = type;
-        _s_setLen(s, len);
-    }
+    if(!s)
+        return;
+
+    len    = _s_len(s);
+    expect = (size_t)(len * 1.2) + 8;     // remain 8 byte at least
+
+    if(_s_cap(s) <= expect)
+        return ;
+
+    if(expect > len + SDS_MAX_PREALLOC)
+        expect = len + SDS_MAX_PREALLOC;
+
+    hdrlen = _s_lenH(SDS_TYPE(s) & SDS_TYPE_MASK);
+    sh     = erealloc((char*)s - hdrlen, hdrlen+len+1);
+
+    //! it will never failed
+    s = (char*)sh + hdrlen;
+
     _s_setCap(s, len);
-    return s;
 }
 
 /// =====================================================================================
@@ -1951,52 +1757,16 @@ sstr sstr_init(cptr buf, uint len)
 }
 
 /// -- sstr writer --------------------------------------
-inline i64 sstr_wrtE(sstr s, sstr   s2 ) { return s2  ? sstr_wrtB(s, s2 , _s_len(s2 )) : _ERR_LEN; }
-inline i64 sstr_wrtS(sstr s, constr src) { return src ? sstr_wrtB(s, src, strlen(src)) : _ERR_LEN; }
 
-i64  sstr_wrtW(sstr s, constr word)
+static __always_inline i64 __sstr_catA_F(sstr s, constr fmt, va_list ap);
+static __always_inline i64 __sstr_catA_P(sstr s, constr fmt, va_list ap);
+
+i64 sstr_wrtB(sstr s, conptr ptr, size    len)
 {
-    constr b, e;
+    is0_ret(s, _ERR_HANDLE);
 
-    is0_ret(word, 0);
-
-    b = word;
-
-    while(*b &&  isspace(*b)) b++; e = b;
-    while(*e && !isspace(*e)) e++;
-
-    return sstr_wrtB(s, b, e - b);
-}
-
-inline i64  sstr_wrtL(sstr s, constr line)
-{
-    is0_ret(line, 0);
-
-    return sstr_wrtB(s, line, strchrnul(line, '\n') - line);
-}
-
-inline i64 sstr_wrtT(sstr s, constr src, char    end)
-{
-    is0_ret(src, 0);
-
-    return sstr_wrtB(s, src, strchrnul(src, end) - src);
-}
-
-inline i64 sstr_wrtB(sstr s, conptr ptr, size    len)
-{
-    size_t cap;
-
-    is0_ret(s, _ERR_LEN);
-
-    cap = _s_cap(s);
-
-    if(cap < len)
-    {
-        memcpy(s, ptr, cap);
-        _s_setLen(s, cap);
-
-        return cap - len;
-    }
+    if(_s_cap(s) < len)
+        return _ERR_HANDLE;
 
     memcpy(s, ptr, len);
     s[len] = '\0';
@@ -2005,227 +1775,40 @@ inline i64 sstr_wrtB(sstr s, conptr ptr, size    len)
     return len;
 }
 
-inline i64 sstr_wrtA(sstr s, constr fmt, va_list ap )
+i64 sstr_wrtC(sstr s, char   c  , size    cnt)
 {
-    va_list cpy; i64 wr_len;
-    char staticbuf[1024], *buf = staticbuf;
+    is0_ret(s, _ERR_HANDLE);
 
-    size_t buflen = strlen(fmt)*2;
+    if(_s_cap(s) < cnt)
+        return _ERR_HANDLE;
 
-    /* We try to start using a static buffer for speed.
-     * If not possible we revert to heap allocation. */
-    if (buflen > sizeof(staticbuf)) {
-        buf = emalloc(buflen);
-        is0_ret(buf, _ERR_LEN);
-    } else {
-        buflen = sizeof(staticbuf);
-    }
+    memset(s, c, cnt);
+    s[cnt] = '\0';
+    _s_setLen(s, cnt);
 
-    /* Try with buffers two times bigger every time we fail to
-     * fit the string in the current buffer size. */
-    while(1) {
-        buf[buflen-2] = '\0';
-        va_copy(cpy,ap);
-        wr_len = vsnprintf(buf, buflen, fmt, cpy);
-        va_end(cpy);
-        if (buf[buflen-2] != '\0') {
-            if (buf != staticbuf) efree(buf);
-            buflen *= 2;
-            buf = emalloc(buflen);
-            is0_ret(buf, _ERR_LEN);
-            continue;
-        }
-        break;
-    }
-
-    /* Finally concat the obtained string to the SDS string and return it. */
-    wr_len = wr_len > 0 ? sstr_wrtB(s, buf, wr_len) : sstr_wrtS(s, buf);
-    if (buf != staticbuf) efree(buf);
-
-    return wr_len;
+    return cnt;
 }
 
-inline i64 sstr_wrtP(sstr s, constr fmt, ...)
+i64 sstr_wrtE(sstr s, sstr   s2  ) { return s2   ? sstr_wrtB(s, s2  , _s_len(s2 ))                   : 0; }
+i64 sstr_wrtS(sstr s, constr src ) { return src  ? sstr_wrtB(s, src , strlen(src))                   : 0; }
+i64 sstr_wrtL(sstr s, constr line) { return line ? sstr_wrtB(s, line, strchrnul(line, '\n') - line)  : 0; }
+i64 sstr_wrtW(sstr s, constr w   ) { constr e; __get_word_s_e(w, e); return sstr_wrtB(s, w, e - w); }
+
+i64 sstr_wrtT(sstr s, constr src, char    end) { return src ? sstr_wrtB(s, src, strchrnul(src, end) - src) : 0; }
+i64 sstr_wrtA(sstr s, constr fmt, va_list ap ) {             is0_ret(s, _ERR_HANDLE); _s_setLen(s, 0);                    return __sstr_catA_P(s, fmt, ap); }
+i64 sstr_wrtP(sstr s, constr fmt, ...        ) { va_list ap; is0_ret(s, _ERR_HANDLE); _s_setLen(s, 0); va_start(ap, fmt); return __sstr_catA_P(s, fmt, ap); }
+i64 sstr_wrtF(sstr s, constr fmt, ...        ) { va_list ap; is0_ret(s, _ERR_HANDLE); _s_setLen(s, 0); va_start(ap, fmt); return __sstr_catA_F(s, fmt, ap); }
+
+i64 sstr_catB(sstr s, conptr ptr, size   len)
 {
-    va_list ap; i64 len;
-
-    va_start(ap, fmt);
-    len = sstr_wrtA(s, fmt, ap);
-    va_end(ap);
-
-    return len;
-}
-
-/* This function is similar to sdscatprintf, but much faster as it does
- * not rely on sprintf() family functions implemented by the libc that
- * are often very slow. Moreover directly handling the sds string as
- * new data is concatenated provides a performance improvement.
- *
- * However this function only handles an incompatible subset of printf-alike
- * format specifiers:
- *
- * %s - C String
- * %S - estr
- * %i - signed int
- * %I - 64 bit signed integer (long long, int64_t)
- * %u - unsigned int
- * %U - 64 bit unsigned integer (unsigned long long, uint64_t)
- * %% - Verbatim "%" character.
- */
-
-static inline i64 __sstr_catF(sstr s, constr fmt, va_list ap)
-{
-    constr f; size_t i; i64 his_len;
-
-    f = fmt;                    /* Next format specifier byte to process. */
-    i = his_len = _s_len(s); /* Position of the next byte to write to dest str. */
-    while(*f) {
-        char next, *str;
-        size_t l;
-        long long num;
-        unsigned long long unum;
-
-        /* Make sure there is always space for at least 1 char. */
-        if (0 == _s_avail(s))
-            goto err_ret;
-
-        switch(*f) {
-        case '%':
-            next = *(f+1);
-            f++;
-            switch(next) {
-            case 's':
-            case 'S':
-                str = va_arg(ap, char*);
-                l = (next == 's') ? strlen(str) : _s_len(str);
-
-
-                if (_s_avail(s) < l)
-                    goto err_ret;
-
-                memcpy(s + i, str, l);
-                _s_incLen(s, l);
-                i += l;
-                break;
-            case 'i':
-            case 'I':
-                if (next == 'i')
-                    num = va_arg(ap,int);
-                else
-                    num = va_arg(ap,long long);
-                    {
-                        char buf[SDS_LLSTR_SIZE];
-                        l = ll2str(num, buf);
-                        if (_s_avail(s) < l)
-                            goto err_ret;
-
-                        memcpy(s+i,buf,l);
-                        _s_incLen(s,l);
-                        i += l;
-                    }
-                break;
-            case 'u':
-            case 'U':
-                if (next == 'u')
-                    unum = va_arg(ap,unsigned int);
-                else
-                    unum = va_arg(ap,unsigned long long);
-                    {
-                        char buf[SDS_LLSTR_SIZE];
-                        l = ull2str(unum, buf);
-                        if (_s_avail(s) < l)
-                            goto err_ret;
-
-                        memcpy(s+i, buf, l);
-                        _s_incLen(s,l);
-                        i += l;
-                    }
-                break;
-            default: /* Handle %% and generally %<unknown>. */
-                s[i++] = next;
-                _s_incLen(s,1);
-                break;
-            }
-            break;
-        default:
-            s[i++] = *f;
-            _s_incLen(s, 1);
-            break;
-        }
-        f++;
-    }
-    va_end(ap);
-
-    /* Add null-term */
-    s[i] = '\0';
-
-    return _s_len(s) - his_len;
-
-err_ret:
-    va_end(ap);
-    return _ERR_LEN;
-}
-
-inline i64 sstr_wrtF(sstr s, constr fmt, ...)
-{
-    va_list ap;
-
-    is0_ret(s, _ERR_LEN);
-
-    _s_setLen(s, 0);
-    va_start(ap, fmt);
-
-    return __sstr_catF(s, fmt, ap);
-
-}
-
-inline i64 sstr_catE(sstr s, sstr   s2 ) { return s2  ? sstr_catB(s, s2 , _s_len(s2 )) : _ERR_LEN; }
-inline i64 sstr_catS(sstr s, constr src) { return src ? sstr_catB(s, src, strlen(src)) : _ERR_LEN; }
-
-inline i64  sstr_catW(sstr s, constr word)
-{
-    constr b, e;
-
-    is0_ret(word, 0);
-
-    b = word;
-
-    while(*b &&  isspace(*b)) b++; e = b;
-    while(*e && !isspace(*e)) e++;
-
-    return sstr_catB(s, b, e - b);
-}
-
-inline i64  sstr_catL(sstr s, constr line)
-{
-    is0_ret(line, 0);
-
-    return sstr_catB(s, line, strchrnul(line, '\n') - line);
-}
-
-inline i64 sstr_catT(sstr s, constr src, char    end)
-{
-    is0_ret(src, 0);
-
-    return sstr_catB(s, src, strchrnul(src, end) - src);
-}
-
-inline i64 sstr_catB(sstr s, conptr ptr, size   len)
-{
-    size_t curlen, rest;
+    size_t curlen;
 
     is0_ret(s, 0);
 
     curlen = _s_len(s);
-    rest   = _s_avail(s);
 
-    if(rest < len)
-    {
-        memcpy(s+curlen, ptr, rest);
-        _s_setLen(s, curlen+rest);
-
-        return rest - len;
-    }
+    if(_s_avail(s) < len)
+        return _ERR_HANDLE;
 
     memcpy(s+curlen, ptr, len);
     _s_setLen(s, curlen+len);
@@ -2234,55 +1817,33 @@ inline i64 sstr_catB(sstr s, conptr ptr, size   len)
     return len;
 }
 
-inline i64 sstr_catA(sstr s, constr fmt, va_list ap )
+i64 sstr_catC(sstr s, char   c  , size    cnt)
 {
-    va_list cpy; i64 wr_len;
-    char staticbuf[1024], *buf = staticbuf;
+    size_t curlen;
 
-    size_t buflen = strlen(fmt)*2;
+    is0_ret(s, 0);
 
-    /* We try to start using a static buffer for speed.
-     * If not possible we revert to heap allocation. */
-    if (buflen > sizeof(staticbuf)) {
-        buf = emalloc(buflen);
-        is0_ret(buf, _ERR_LEN);
-    } else {
-        buflen = sizeof(staticbuf);
-    }
+    curlen = _s_len(s);
 
-    /* Try with buffers two times bigger every time we fail to
-     * fit the string in the current buffer size. */
-    while(1) {
-        buf[buflen-2] = '\0';
-        va_copy(cpy,ap);
-        wr_len = vsnprintf(buf, buflen, fmt, cpy);
-        va_end(cpy);
-        if (buf[buflen-2] != '\0') {
-            if (buf != staticbuf) efree(buf);
-            buflen *= 2;
-            buf = emalloc(buflen);
-            is0_ret(buf, _ERR_LEN);
-            continue;
-        }
-        break;
-    }
+    if(_s_avail(s) < cnt)
+        return _ERR_HANDLE;
 
-    /* Finally concat the obtained string to the SDS string and return it. */
-    wr_len = wr_len > 0 ? sstr_catB(s, buf, wr_len) : sstr_catS(s, buf);
-    if (buf != staticbuf) efree(buf);
-    return wr_len;
+    memset(s+curlen, c, cnt);
+    _s_setLen(s, curlen+cnt);
+    s[curlen+cnt] = '\0';
+
+    return cnt;
 }
 
-inline i64 sstr_catP(sstr s, constr fmt, ...)
-{
-    va_list ap; i64 len;
+i64 sstr_catE(sstr s, sstr   s2  ) { return s2   ? sstr_catB(s, s2 ,  _s_len(s2 )                 ) : 0; }
+i64 sstr_catS(sstr s, constr src ) { return src  ? sstr_catB(s, src,  strlen(src)                 ) : 0; }
+i64 sstr_catL(sstr s, constr line) { return line ? sstr_catB(s, line, strchrnul(line, '\n') - line) : 0; }
+i64 sstr_catW(sstr s, constr w   ) { constr e; __get_word_s_e(w, e); return sstr_catB(s, w, e - w);}
 
-    va_start(ap, fmt);
-    len = sstr_catA(s, fmt, ap);
-    va_end(ap);
-
-    return len;
-}
+i64 sstr_catT(sstr s, constr src, char    end) { return src ? sstr_catB(s, src, strchrnul(src, end) - src) : 0; }
+i64 sstr_catA(sstr s, constr fmt, va_list ap ) {             is0_ret(s, _ERR_HANDLE);                    return __sstr_catA_P(s, fmt, ap); }
+i64 sstr_catP(sstr s, constr fmt, ...        ) { va_list ap; is0_ret(s, _ERR_HANDLE); va_start(ap, fmt); return __sstr_catA_P(s, fmt, ap); }
+i64 sstr_catF(sstr s, constr fmt, ...        ) { va_list ap; is0_ret(s, _ERR_HANDLE); va_start(ap, fmt); return __sstr_catA_F(s, fmt, ap); }
 
 /* This function is similar to sdscatprintf, but much faster as it does
  * not rely on sprintf() family functions implemented by the libc that
@@ -2300,26 +1861,115 @@ inline i64 sstr_catP(sstr s, constr fmt, ...)
  * %U - 64 bit unsigned integer (unsigned long long, uint64_t)
  * %% - Verbatim "%" character.
  */
-inline i64 sstr_catF(sstr s, constr fmt, ...)
+static i64 __sstr_catA_F(sstr s, constr fmt, va_list ap)
 {
-    va_list ap;
+    constr f; size_t i, l, his_len; char next, *str; eval num; char buf[SDS_LLSTR_SIZE];
 
-    is0_ret(s, _ERR_LEN);
+    f = fmt;                    /* Next format specifier byte to process. */
+    i = his_len = _s_len(s);    /* Position of the next byte to write to dest str. */
 
-    va_start(ap, fmt);
+    while(*f) {
 
-    return __sstr_catF(s, fmt, ap);
+        /* Make sure there is always space for at least 1 char. */
+        if (0 == _s_avail(s))
+            goto err_ret;
+
+        switch(*f)
+        {
+            case '%': next = *(f+1);
+                      f++;
+
+                      switch(next)
+                      {
+                          case 's':
+                          case 'S': str = va_arg(ap, char*);
+
+                                    if(!str) { str = "(null)"; l= 6;}
+                                    else
+                                        l = (next == 's') ? strlen(str) : _s_len(str);
+
+                                    if (_s_avail(s) < l)
+                                        goto err_ret;
+
+                                    memcpy(s + i, str, l);
+                                    _s_incLen(s, l);
+                                    i += l;
+                                    break;
+                          case 'i':
+                          case 'I': num.i = (next == 'i') ? va_arg(ap,int)
+                                                          : va_arg(ap,long long);
+
+                                    l = ll2str(num.i, buf);
+                                    if (_s_avail(s) < l)
+                                        goto err_ret;
+
+                                    memcpy(s+i,buf,l);
+                                    _s_incLen(s,l);
+                                    i += l;
+
+                                    break;
+                          case 'u':
+                          case 'U': num.u = (next == 'u') ? va_arg(ap,int)
+                                                          : va_arg(ap,long long);
+
+                                    l = ull2str(num.u, buf);
+                                    if (_s_avail(s) < l)
+                                        goto err_ret;
+
+                                    memcpy(s+i,buf,l);
+                                    _s_incLen(s,l);
+                                    i += l;
+
+                                    break;
+
+                      default : s[i++] = next;      /* Handle %% and generally %<unknown>. */
+                                _s_incLen(s, 1);
+                                break;
+                 }
+                 break;
+
+        default: s[i++] = *f;
+                 _s_incLen(s, 1);
+                 break;
+        }
+
+        f++;
+    }
+
+    /* Add null-term */
+    s[i] = '\0';
+
+    return _s_len(s) - his_len;
+
+err_ret:
+    return _ERR_HANDLE;
+}
+
+typedef struct sstr__context {
+    int  avail;      // set in the first place so we can get it directly
+    estr s;         // handle for compat estr
+}sstr__context;
+
+static char* __sstr_stbsp__clamp_callback(char *buf, void *user, int len)
+{
+   sstr__context *c = (sstr__context *)user;
+
+   _s_incLen(c->s, len);
+
+   return _s_avail(c->s) ? c->s + _s_len(c->s) : 0;
+}
+
+static inline i64 __sstr_catA_P(sstr s, constr fmt, va_list ap )
+{
+    sstr__context c;
+
+    c.s     = s + _s_len(s);
+    c.avail = (int)_s_avail(s);
+
+    return  __estr_vsprintfcb ( __sstr_stbsp__clamp_callback, &c, c.s, fmt, ap );
 }
 
 /// -- sstr utils ---------------------------------------
-inline void sstr_show(sstr s)  { _show("sstr", s); }
-
-sstr sstr_subs (sstr s, constr from, constr to)
-{
-    is0_ret(s, 0);
-
-    return __estr_replace_str(&s, from, to, 0) >= 0 ? s : 0;
-}
 
 void sstr_decrLen(sstr s, size_t decr)
 {

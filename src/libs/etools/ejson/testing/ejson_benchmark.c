@@ -43,14 +43,14 @@ void udb_destroy_data()
 
 void obj_bench_init(ebench_p b)
 {
-    b->prvt.p = ejson_new(EOBJ, EVAL_ZORE);
+    b->bprvt.p = ejson_new(EOBJ, EVAL_ZORE);
 }
 
 void obj_bench_add(ebench_p b)
 {
     u64 oprts = b->oprts;
 
-    ejson e = b->prvt.p;
+    ejson e = b->bprvt.p;
 
     for(u64 i = 0; i < oprts; i++)
     {
@@ -64,11 +64,12 @@ void obj_bench_add_rand(ebench_p b)
 {
     u64 oprts = b->oprts;
 
-    ejson e = b->prvt.p;
+    ejson e = b->bprvt.p;
 
     for(u64 i = 0; i < oprts; i++)
     {
-        ejson_addT(e, str_data[i], ETRUE);
+        if(!ejson_addT(e, str_data[i], ETRUE))
+            ejson_takeR(e, str_data[i]);
     }
 
     b->scale = ejson_size(e);
@@ -78,7 +79,7 @@ void obj_bench_find(ebench_p b)
 {
     u64 oprts = b->oprts;
 
-    ejson e = b->prvt.p;
+    ejson e = b->bprvt.p;
 
     for(u64 i = 0; i < oprts; i++)
     {
@@ -96,15 +97,11 @@ void obj_bench_find_rand(ebench_p b)
 {
     u64 oprts = b->oprts;
 
-    ejson e = b->prvt.p;
+    ejson e = b->bprvt.p;
 
     for(u64 i = 0; i < oprts; i++)
     {
-        if(!ejson_r(e, str_data[i]))
-        {
-            llog_err("'%d' can not find in json");
-            abort();
-        }
+        ejson_r(e, str_data[i]);
     }
 
     b->scale = ejson_size(e);
@@ -112,20 +109,20 @@ void obj_bench_find_rand(ebench_p b)
 
 void obj_bench_free(ebench_p b)
 {
-    b->oprts = b->scale = ejson_size(b->prvt.p);
-    ejson_free(b->prvt.p);
+    b->oprts = b->scale = ejson_size(b->bprvt.p);
+    ejson_free(b->bprvt.p);
 }
 
 void arr_bench_init(ebench_p b)
 {
-    b->prvt.p = ejson_new(EARR, EVAL_ZORE);
+    b->bprvt.p = ejson_new(EARR, EVAL_ZORE);
 }
 
 void arr_bench_add(ebench_p b)
 {
     u64 oprts = b->oprts;
 
-    ejson e = b->prvt.p;
+    ejson e = b->bprvt.p;
 
     for(u64 i = 0; i < oprts; i++)
     {
@@ -139,7 +136,7 @@ void arr_bench_find(ebench_p b)
 {
     u64 oprts = b->oprts;
 
-    ejson e = b->prvt.p;
+    ejson e = b->bprvt.p;
 
     for(u64 i = 0; i < oprts; i++)
     {
@@ -155,8 +152,8 @@ void arr_bench_find(ebench_p b)
 
 void arr_bench_free(ebench_p b)
 {
-    b->oprts = b->scale = ejson_size(b->prvt.p);
-    ejson_free(b->prvt.p);
+    b->oprts = b->scale = ejson_size(b->bprvt.p);
+    ejson_free(b->bprvt.p);
 }
 
 #define CALLGRIND 0
@@ -168,31 +165,31 @@ int ejson_benchmark(int argc, char* argv[])
     udb_init_data();
 
     b = ebench_new("ejson obj operating");
-    ebench_addStep(b, "init", obj_bench_init);
-    ebench_addOprt(b, "add" , obj_bench_add);
-    ebench_addOprt(b, "find", obj_bench_find);
-    ebench_addOprt(b, "free", obj_bench_free);
-    ebench_addCase(b,   50000);
-    ebench_addCase(b,  500000);
-    ebench_addCase(b, 5000000);
+    ebench_addStep(b, "init", obj_bench_init, EVAL_0);
+    ebench_addOprt(b, "add" , obj_bench_add , EVAL_0);
+    ebench_addOprt(b, "find", obj_bench_find, EVAL_0);
+    ebench_addOprt(b, "free", obj_bench_free, EVAL_0);
+    ebench_addCase(b,   50000, EVAL_0);
+    ebench_addCase(b,  500000, EVAL_0);
+    ebench_addCase(b, 5000000, EVAL_0);
 
     b = ebench_new("ejson arr operating");
-    ebench_addStep(b, "init", arr_bench_init);
-    ebench_addOprt(b, "add" , arr_bench_add);
-    ebench_addOprt(b, "find", arr_bench_find);
-    ebench_addOprt(b, "free", arr_bench_free);
-    ebench_addCase(b,   50000);
-    ebench_addCase(b,  500000);
-    ebench_addCase(b, 5000000);
+    ebench_addStep(b, "init", arr_bench_init, EVAL_0);
+    ebench_addOprt(b, "add" , arr_bench_add , EVAL_0);
+    ebench_addOprt(b, "find", arr_bench_find, EVAL_0);
+    ebench_addOprt(b, "free", arr_bench_free, EVAL_0);
+    ebench_addCase(b,   50000, EVAL_0);
+    ebench_addCase(b,  500000, EVAL_0);
+    ebench_addCase(b, 5000000, EVAL_0);
 
     b = ebench_new("ejson obj rand key S");
-    ebench_addStep(b, "init", obj_bench_init);
-    ebench_addOprt(b, "add" , obj_bench_add_rand);
-    ebench_addOprt(b, "find", obj_bench_find_rand);
-    ebench_addOprt(b, "free", obj_bench_free);
-    ebench_addCase(b,   50000);
-    ebench_addCase(b,  500000);
-    ebench_addCase(b, 5000000);
+    ebench_addStep(b, "init", obj_bench_init     , EVAL_0);
+    ebench_addOprt(b, "add" , obj_bench_add_rand , EVAL_0);
+    ebench_addOprt(b, "find", obj_bench_find_rand, EVAL_0);
+    ebench_addOprt(b, "free", obj_bench_free     , EVAL_0);
+    ebench_addCase(b,   50000, EVAL_0);
+    ebench_addCase(b,  500000, EVAL_0);
+    ebench_addCase(b, 5000000, EVAL_0);
 
     ebench_exec();
 

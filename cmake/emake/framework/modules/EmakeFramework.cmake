@@ -14,7 +14,7 @@
 #
 # =====================================================================================
 
-set(EMAKE_FRAMEWORK_VERSION "1.2.3")
+set(EMAKE_FRAMEWORK_VERSION "1.2.4")
 
 get_filename_component(EMAKE_DIR ${CMAKE_CURRENT_LIST_DIR}/../../ REALPATH)
 

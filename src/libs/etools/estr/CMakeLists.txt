@@ -81,3 +81,4 @@ set(KIT_DEPENDS
 
 # - 测试 -
 ETestAdd(testing   ON)
+ETestAdd(tutorial  ON CREATE)

@@ -30,3 +30,9 @@ ETestAddTestSet(cmpQString OFF
     DEPENDS Qt5::Core
 
     )
+
+ETestAddTestSet(
+    TYPE    Benchmark
+
+    CASES   test_performance.c
+    )

@@ -32,9 +32,10 @@ set(KIT_EXPORT_DIR          )           # 导出目录  未设置则使用 ${COM
 set(KIT_EXPECT_DIR          )           # 期望位置  相对于被依赖目标输出位置的相对路径，默认为空
 
 # - 源文件 -
-file(GLOB _SRCS_ ${KIT_DIR}/*.h ${KIT_DIR}/*.cpp ${KIT_DIR}/*.c)
 set(KIT_SRCS
-    ${_SRCS_}
+    [R]${KIT_DIR}/[.][hc][xp]?[xp]?$        # [R] -> Regex
+   #[*]${KIT_DIR}/*.[hc]                    # [*] -> file(GLOB ...), see CMAKE CMD of 'file'
+   #[-]${KIT_DIR}/*.[hc]                    # [-] -> like [*], but remove those files
     )
 
 # - 源文件: 入口 -
